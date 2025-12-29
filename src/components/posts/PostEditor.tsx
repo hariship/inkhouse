@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { Post, PostFormData } from '@/types'
 import { Save, Eye, Upload, X, Pencil } from 'lucide-react'
@@ -39,7 +39,7 @@ interface PostEditorProps {
 const DRAFT_KEY = 'inkhouse-draft'
 
 export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
-  const quillRef = useRef<any>(null)
+  const [quillEditor, setQuillEditor] = useState<any>(null)
   const { theme } = useTheme()
   const [isDrawingOpen, setIsDrawingOpen] = useState(false)
   const [isContentDrawingOpen, setIsContentDrawingOpen] = useState(false)
@@ -53,11 +53,8 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
 
   // Helper to get Quill editor instance
   const getQuill = useCallback(() => {
-    if (quillRef.current) {
-      return quillRef.current.getEditor?.() || quillRef.current
-    }
-    return null
-  }, [])
+    return quillEditor
+  }, [quillEditor])
 
   // Insert drawing as featured image
   const handleInsertDrawing = useCallback((imageUrl: string) => {
@@ -400,7 +397,11 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
               theme="snow"
               value={formData.content}
               onChange={handleContentChange}
-              ref={quillRef}
+              onChangeSelection={(range: any, source: any, editor: any) => {
+                if (editor && !quillEditor) {
+                  setQuillEditor(editor)
+                }
+              }}
               modules={quillModules}
               className="h-[600px]"
             />
