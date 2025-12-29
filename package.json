@@ -1,0 +1,42 @@
+{
+  "name": "inkhouse",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
+    "@supabase/supabase-js": "^2.89.0",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.8.0",
+    "date-fns": "^4.1.0",
+    "html-react-parser": "^5.2.11",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.562.0",
+    "next": "16.1.1",
+    "next-cloudinary": "^6.17.5",
+    "nodemailer": "^7.0.12",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-quill-new": "^3.7.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/nodemailer": "^7.0.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/uuid": "^11.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

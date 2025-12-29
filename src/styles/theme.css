@@ -1,0 +1,150 @@
+/* Star Trek TNG Inspired Theme - Sophisticated, comfortable reading */
+
+:root {
+  /* Light Theme - Clean, warm grays */
+  --color-primary: #4b5563;
+  --color-primary-light: #6b7280;
+
+  /* Background Colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f3f4f6;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #f3f4f6;
+  --color-bg-overlay: rgba(255, 255, 255, 0.95);
+
+  /* Text Colors */
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #9ca3af;
+  --color-text-inverse: #ffffff;
+
+  /* Border Colors */
+  --color-border-light: #e5e7eb;
+  --color-border-medium: #d1d5db;
+  --color-border-dark: #9ca3af;
+
+  /* Interactive Colors */
+  --color-link: #4b5563;
+  --color-link-hover: #1f2937;
+  --color-button-primary: #6b7280;
+  --color-button-primary-hover: #4b5563;
+  --color-button-secondary: #9ca3af;
+  --color-button-secondary-hover: #6b7280;
+  --color-icon-primary: #6b7280;
+  --color-icon-secondary: #9ca3af;
+
+  /* Status Colors */
+  --color-success: #059669;
+  --color-success-light: #d1fae5;
+  --color-error: #dc2626;
+  --color-error-light: #fee2e2;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-info: #3366cc;
+  --color-info-light: #dbeafe;
+
+  /* Shadow */
+  --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-heavy: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
+
+/* Dark Theme - Comfortable reading, like your blog */
+[data-theme="dark"] {
+  /* Background - Deep, comfortable dark */
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1e1e1e;
+  --color-bg-tertiary: #2d2d2d;
+  --color-bg-card: #1e1e1e;
+  --color-bg-hover: #333333;
+  --color-bg-overlay: rgba(18, 18, 18, 0.95);
+
+  /* Text Colors - Soft, easy on the eyes (like your blog) */
+  --color-text-primary: #b0b1b4;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #121212;
+
+  /* Border Colors */
+  --color-border-light: #333333;
+  --color-border-medium: #444444;
+  --color-border-dark: #555555;
+
+  /* Interactive Colors - Subtle blue for links */
+  --color-link: #60a5fa;
+  --color-link-hover: #93c5fd;
+  --color-button-primary: #6b7280;
+  --color-button-primary-hover: #9ca3af;
+  --color-button-secondary: #525252;
+  --color-button-secondary-hover: #6b7280;
+  --color-icon-primary: #9ca3af;
+  --color-icon-secondary: #6b7280;
+
+  /* Status Colors */
+  --color-success: #4caf50;
+  --color-success-light: #1b2e1f;
+  --color-error: #f44336;
+  --color-error-light: #2e1b1b;
+  --color-warning: #ff9800;
+  --color-warning-light: #2e2419;
+  --color-info: #2196f3;
+  --color-info-light: #1b242e;
+
+  /* Shadow */
+  --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-light: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-large: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Smooth transitions */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-medium);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-dark);
+}
