@@ -29,7 +29,8 @@ export default function LoginPage() {
     const result = await login(email, password)
 
     if (result.success) {
-      router.push('/?welcome=true')
+      const redirect = searchParams.get('redirect')
+      router.push(redirect || '/?welcome=true')
     } else {
       setError(result.error || 'Login failed')
     }

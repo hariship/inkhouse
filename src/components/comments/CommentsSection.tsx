@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { CommentWithAuthor } from '@/types'
 import { User, MessageSquare } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface CommentsSectionProps {
   postId: number
@@ -13,6 +15,7 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ postId, allowComments }: CommentsSectionProps) {
   const { user, isAuthenticated } = useAuth()
+  const pathname = usePathname()
   const [comments, setComments] = useState<CommentWithAuthor[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -101,26 +104,35 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
           </p>
         )}
         {!isAuthenticated && (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Your name *"
-              value={formData.author_name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, author_name: e.target.value }))
-              }
-              required
-              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
-            />
-            <input
-              type="email"
-              placeholder="Your email (optional)"
-              value={formData.author_email}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, author_email: e.target.value }))
-              }
-              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
-            />
+          <div className="mb-4">
+            <p className="text-sm text-[var(--color-text-muted)] mb-3">
+              Have an account?{' '}
+              <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="text-[var(--color-link)] hover:text-[var(--color-link-hover)] font-medium">
+                Sign in
+              </Link>
+              {' '}to comment as yourself
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Your name *"
+                value={formData.author_name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, author_name: e.target.value }))
+                }
+                required
+                className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
+              />
+              <input
+                type="email"
+                placeholder="Your email (optional)"
+                value={formData.author_email}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, author_email: e.target.value }))
+                }
+                className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
+              />
+            </div>
           </div>
         )}
         <textarea
