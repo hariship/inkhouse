@@ -118,7 +118,7 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search posts..."
-            className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)] focus:outline-none"
+            className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
           />
           <button
             type="submit"
@@ -175,13 +175,13 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
                   {post.category && (
                     <button
                       onClick={() => handleCategoryClick(post.category!)}
-                      className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+                      className="text-xs font-medium text-[#0D9488] uppercase tracking-wide hover:underline cursor-pointer"
                     >
                       {post.category}
                     </button>
                   )}
                   <Link href={`/post/${post.normalized_title}`}>
-                    <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)]">
+                    <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[#0D9488]">
                       {post.title}
                     </h2>
                   </Link>
@@ -194,7 +194,7 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
                 <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-sm text-[var(--color-text-muted)]">
                   <Link
                     href={`/author/${post.author?.username}`}
-                    className="flex items-center hover:text-[var(--color-link)]"
+                    className="flex items-center hover:text-[#0D9488]"
                   >
                     {post.author?.avatar_url ? (
                       <Image

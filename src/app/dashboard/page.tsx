@@ -171,25 +171,31 @@ export default function DashboardPage() {
                 {post.status === 'published' && (
                   <Link
                     href={`/post/${post.normalized_title}`}
-                    className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                    title="View"
+                    className="relative group p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
                   >
                     <Eye className="w-5 h-5" />
+                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      View
+                    </span>
                   </Link>
                 )}
                 <Link
                   href={`/dashboard/edit/${post.id}`}
-                  className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                  title="Edit"
+                  className="relative group p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
                 >
                   <Edit2 className="w-5 h-5" />
+                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Edit
+                  </span>
                 </Link>
                 <button
                   onClick={() => handleDelete(post.id)}
-                  className="p-2 text-[var(--color-error)] hover:opacity-80"
-                  title="Delete"
+                  className="relative group p-2 text-[var(--color-error)] hover:opacity-80"
                 >
                   <Trash2 className="w-5 h-5" />
+                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Delete
+                  </span>
                 </button>
               </div>
             </div>

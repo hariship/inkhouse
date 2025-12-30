@@ -105,7 +105,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
                 setFormData((prev) => ({ ...prev, author_name: e.target.value }))
               }
               required
-              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
             />
             <input
               type="email"
@@ -114,7 +114,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, author_email: e.target.value }))
               }
-              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+              className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
             />
           </div>
         )}
@@ -126,7 +126,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
           }
           rows={3}
           required
-          className="w-full px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] mb-4"
+          className="w-full px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] mb-4 focus:ring-1 focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
         />
         <button
           type="submit"
@@ -160,7 +160,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
                 />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                  <User className="w-5 h-5 text-gray-500" />
+                  <User className="w-5 h-5 text-[#0D9488]" />
                 </div>
               )}
               <div className="flex-1">
@@ -182,7 +182,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
                     {comment.replies.map((reply) => (
                       <div key={reply.id} className="flex space-x-3">
                         <div className="w-8 h-8 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                          <User className="w-4 h-4 text-gray-500" />
+                          <User className="w-4 h-4 text-[#0D9488]" />
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">

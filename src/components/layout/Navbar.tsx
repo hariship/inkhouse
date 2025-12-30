@@ -27,7 +27,7 @@ export function Navbar() {
                 <>
                   <Link
                     href="/dashboard"
-                    className="flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                    className="flex items-center text-[var(--color-text-secondary)] hover:text-[#0D9488] transition-colors cursor-pointer"
                   >
                     <User className="w-5 h-5 mr-1" />
                     {user?.display_name}

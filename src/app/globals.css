@@ -33,11 +33,24 @@ a:not([class*="text-"]):not([class*="btn-"]):hover {
   color: var(--color-link-hover);
 }
 
+/* All interactive elements should have pointer cursor */
+button,
+[role="button"],
+a,
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+}
+
 /* Custom button styles using theme colors */
 .btn-primary {
   background-color: var(--color-button-primary);
   color: var(--color-text-inverse);
   transition: background-color 0.2s ease;
+  cursor: pointer;
 }
 
 .btn-primary:hover {

@@ -24,9 +24,9 @@
   --color-border-medium: #d1d5db;
   --color-border-dark: #9ca3af;
 
-  /* Interactive Colors */
-  --color-link: #4b5563;
-  --color-link-hover: #1f2937;
+  /* Interactive Colors - Cyan accent */
+  --color-link: #0D9488;
+  --color-link-hover: #0f766e;
   --color-button-primary: #6b7280;
   --color-button-primary-hover: #4b5563;
   --color-button-secondary: #9ca3af;
@@ -92,9 +92,9 @@
   --color-border-medium: #444444;
   --color-border-dark: #555555;
 
-  /* Interactive Colors - Subtle blue for links */
-  --color-link: #60a5fa;
-  --color-link-hover: #93c5fd;
+  /* Interactive Colors - Cyan accent */
+  --color-link: #2dd4bf;
+  --color-link-hover: #5eead4;
   --color-button-primary: #6b7280;
   --color-button-primary-hover: #9ca3af;
   --color-button-secondary: #525252;
