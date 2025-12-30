@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser, hashPassword, generateTempPassword } from '@/lib/auth'
+import { sendWelcomeEmail, sendRejectionEmail } from '@/lib/email'
 
 export async function GET(
   request: NextRequest,
@@ -139,14 +140,22 @@ export async function PATCH(
         })
         .eq('id', id)
 
-      // TODO: Send welcome email with credentials
-      // For now, log the temp password (in production, this would be emailed)
-      console.log(`User ${membershipRequest.email} approved. Temp password: ${tempPassword}`)
+      // Send welcome email with credentials
+      const emailResult = await sendWelcomeEmail({
+        to: membershipRequest.email,
+        name: membershipRequest.name,
+        username: membershipRequest.username,
+        tempPassword,
+      })
+
+      if (!emailResult.success) {
+        console.error('Failed to send welcome email:', emailResult.error)
+      }
 
       return NextResponse.json({
         success: true,
-        message: 'User approved and created',
-        tempPassword, // Remove in production - send via email instead
+        message: 'User approved and welcome email sent',
+        emailSent: emailResult.success,
       })
     } else {
       // Reject request
@@ -160,11 +169,21 @@ export async function PATCH(
         })
         .eq('id', id)
 
-      // TODO: Send rejection email
+      // Send rejection email
+      const emailResult = await sendRejectionEmail({
+        to: membershipRequest.email,
+        name: membershipRequest.name,
+        reason: rejection_reason,
+      })
+
+      if (!emailResult.success) {
+        console.error('Failed to send rejection email:', emailResult.error)
+      }
 
       return NextResponse.json({
         success: true,
         message: 'Request rejected',
+        emailSent: emailResult.success,
       })
     }
   } catch (error) {

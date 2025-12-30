@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { MembershipRequest } from '@/types'
 import Link from 'next/link'
-import { X, Copy, Check } from 'lucide-react'
+import { X, Mail, AlertCircle } from 'lucide-react'
 
 function RequestsContent() {
   const [requests, setRequests] = useState<MembershipRequest[]>([])
@@ -12,8 +12,7 @@ function RequestsContent() {
   const [error, setError] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('pending')
-  const [approvalModal, setApprovalModal] = useState<{ email: string; password: string } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [successModal, setSuccessModal] = useState<{ email: string; emailSent: boolean } | null>(null)
 
   const fetchRequests = async () => {
     try {
@@ -49,10 +48,9 @@ function RequestsContent() {
       if (data.success) {
         // Remove from list
         setRequests((prev) => prev.filter((r) => r.id !== id))
-        if (action === 'approve' && data.tempPassword) {
+        if (action === 'approve') {
           const request = requests.find(r => r.id === id)
-          setApprovalModal({ email: request?.email || '', password: data.tempPassword })
-          setCopied(false)
+          setSuccessModal({ email: request?.email || '', emailSent: data.emailSent })
         }
       } else {
         alert(data.error || 'Failed to process request')
@@ -72,18 +70,10 @@ function RequestsContent() {
     )
   }
 
-  const handleCopy = async () => {
-    if (approvalModal) {
-      await navigator.clipboard.writeText(approvalModal.password)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Approval Success Modal */}
-      {approvalModal && (
+      {successModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--color-bg-card)] rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
@@ -91,50 +81,41 @@ function RequestsContent() {
                 User Approved
               </h3>
               <button
-                onClick={() => setApprovalModal(null)}
+                onClick={() => setSuccessModal(null)}
                 className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-[var(--color-text-secondary)] mb-4">
-              The user has been approved. Share these credentials with them:
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-[var(--color-text-muted)]">Email</label>
-                <p className="text-[var(--color-text-primary)] font-medium">{approvalModal.email}</p>
-              </div>
-
-              <div>
-                <label className="text-sm text-[var(--color-text-muted)]">Temporary Password</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <code className="flex-1 bg-[var(--color-bg-tertiary)] px-3 py-2 rounded text-[var(--color-text-primary)] font-mono">
-                    {approvalModal.password}
-                  </code>
-                  <button
-                    onClick={handleCopy}
-                    className="p-2 bg-[var(--color-bg-tertiary)] rounded hover:bg-[var(--color-bg-hover)]"
-                    title="Copy password"
-                  >
-                    {copied ? (
-                      <Check className="w-5 h-5 text-[var(--color-success)]" />
-                    ) : (
-                      <Copy className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                    )}
-                  </button>
+            {successModal.emailSent ? (
+              <div className="flex items-start gap-3">
+                <Mail className="w-6 h-6 text-[var(--color-success)] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[var(--color-text-primary)] font-medium">
+                    Welcome email sent!
+                  </p>
+                  <p className="text-[var(--color-text-secondary)] mt-1">
+                    Login credentials have been sent to <strong>{successModal.email}</strong>
+                  </p>
                 </div>
               </div>
-            </div>
-
-            <p className="text-sm text-[var(--color-text-muted)] mt-4">
-              The user should change this password after their first login.
-            </p>
+            ) : (
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-6 h-6 text-[var(--color-warning)] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[var(--color-text-primary)] font-medium">
+                    User approved, but email failed
+                  </p>
+                  <p className="text-[var(--color-text-secondary)] mt-1">
+                    Could not send email to <strong>{successModal.email}</strong>. Please contact them manually.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <button
-              onClick={() => setApprovalModal(null)}
+              onClick={() => setSuccessModal(null)}
               className="mt-6 w-full btn-primary py-2 rounded-md"
             >
               Done
