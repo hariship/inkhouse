@@ -15,12 +15,13 @@ export const metadata: Metadata = {
   },
 }
 
-async function getInitialPosts() {
+async function getInitialData() {
   const supabase = createServerClient()
   if (!supabase) {
-    return { posts: [], totalPages: 0 }
+    return { posts: [], totalPages: 0, categories: [] }
   }
 
+  // Fetch posts
   const { data: posts, count } = await supabase
     .from('posts')
     .select(`
@@ -31,14 +32,25 @@ async function getInitialPosts() {
     .order('pub_date', { ascending: false })
     .range(0, 9)
 
+  // Fetch unique categories
+  const { data: categoryData } = await supabase
+    .from('posts')
+    .select('category')
+    .eq('status', 'published')
+    .not('category', 'is', null)
+    .not('category', 'eq', '')
+
+  const categories = [...new Set(categoryData?.map(p => p.category).filter(Boolean))] as string[]
+
   return {
     posts: posts || [],
     totalPages: Math.ceil((count || 0) / 10),
+    categories: categories.sort(),
   }
 }
 
 export default async function HomePage() {
-  const { posts, totalPages } = await getInitialPosts()
+  const { posts, totalPages, categories } = await getInitialData()
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-secondary)]">
@@ -56,7 +68,7 @@ export default async function HomePage() {
         </div>
 
         {/* Posts Grid with Search */}
-        <PostGrid initialPosts={posts} initialTotalPages={totalPages} />
+        <PostGrid initialPosts={posts} initialTotalPages={totalPages} categories={categories} />
       </main>
 
       {/* Footer */}

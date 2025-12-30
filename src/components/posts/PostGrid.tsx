@@ -9,19 +9,21 @@ import { Calendar, User } from 'lucide-react'
 interface PostGridProps {
   initialPosts: PostWithAuthor[]
   initialTotalPages: number
+  categories: string[]
 }
 
-export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
+export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGridProps) {
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts)
   const [isLoading, setIsLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(initialTotalPages)
   const [search, setSearch] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [isFiltering, setIsFiltering] = useState(false)
 
-  // Only fetch when searching or paginating (not on initial load)
+  // Fetch when filtering, searching, or paginating
   useEffect(() => {
-    if (!isSearching && page === 1) return
+    if (!isFiltering && page === 1) return
 
     const fetchPosts = async () => {
       setIsLoading(true)
@@ -31,6 +33,7 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
           limit: '10',
         })
         if (search) params.append('search', search)
+        if (selectedCategory) params.append('category', selectedCategory)
 
         const response = await fetch(`/api/posts?${params}`)
         const data = await response.json()
@@ -47,17 +50,30 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
     }
 
     fetchPosts()
-  }, [page, search, isSearching])
+  }, [page, search, selectedCategory, isFiltering])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSearching(true)
+    setIsFiltering(true)
     setPage(1)
   }
 
-  const handleClearSearch = () => {
+  const handleCategoryClick = (category: string | null) => {
+    setSelectedCategory(category)
+    setIsFiltering(true)
+    setPage(1)
+    if (!category) {
+      // Reset to initial when "All" is clicked
+      setPosts(initialPosts)
+      setTotalPages(initialTotalPages)
+      setIsFiltering(false)
+    }
+  }
+
+  const handleClearFilters = () => {
     setSearch('')
-    setIsSearching(false)
+    setSelectedCategory(null)
+    setIsFiltering(false)
     setPage(1)
     setPosts(initialPosts)
     setTotalPages(initialTotalPages)
@@ -65,6 +81,35 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
 
   return (
     <>
+      {/* Category Filter */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
+          <button
+            onClick={() => handleCategoryClick(null)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+              selectedCategory === null
+                ? 'bg-[var(--color-button-primary)] text-white'
+                : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => handleCategoryClick(category)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+                selectedCategory === category
+                  ? 'bg-[var(--color-button-primary)] text-white'
+                  : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Search */}
       <form onSubmit={handleSearch} className="mb-8">
         <div className="flex max-w-xl mx-auto">
@@ -82,14 +127,14 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
             Search
           </button>
         </div>
-        {isSearching && (
+        {(isFiltering || selectedCategory) && (
           <div className="text-center mt-2">
             <button
               type="button"
-              onClick={handleClearSearch}
-              className="text-sm text-[var(--color-link)] hover:underline"
+              onClick={handleClearFilters}
+              className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:underline cursor-pointer"
             >
-              Clear search
+              Clear filters
             </button>
           </div>
         )}
@@ -111,7 +156,7 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
           {posts.map((post) => (
             <article
               key={post.id}
-              className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow"
+              className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col"
             >
               {post.image_url && (
                 <Link href={`/post/${post.normalized_title}`}>
@@ -125,23 +170,28 @@ export function PostGrid({ initialPosts, initialTotalPages }: PostGridProps) {
                   </div>
                 </Link>
               )}
-              <div className="p-6">
-                {post.category && (
-                  <span className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide">
-                    {post.category}
-                  </span>
-                )}
-                <Link href={`/post/${post.normalized_title}`}>
-                  <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)]">
-                    {post.title}
-                  </h2>
-                </Link>
-                {post.description && (
-                  <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
-                    {post.description}
-                  </p>
-                )}
-                <div className="mt-4 flex items-center justify-between text-sm text-[var(--color-text-muted)]">
+              <div className="p-6 flex flex-col flex-1">
+                <div className="flex-1">
+                  {post.category && (
+                    <button
+                      onClick={() => handleCategoryClick(post.category!)}
+                      className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+                    >
+                      {post.category}
+                    </button>
+                  )}
+                  <Link href={`/post/${post.normalized_title}`}>
+                    <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)]">
+                      {post.title}
+                    </h2>
+                  </Link>
+                  {post.description && (
+                    <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
+                      {post.description}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-sm text-[var(--color-text-muted)]">
                   <Link
                     href={`/author/${post.author?.username}`}
                     className="flex items-center hover:text-[var(--color-link)]"

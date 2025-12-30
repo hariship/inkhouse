@@ -13,9 +13,12 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 // Server-side Supabase client (uses service role key for full access)
 export function createServerClient(): SupabaseClient | null {
+  // Read env vars fresh each time to avoid caching issues during cold starts
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!url || !serviceRoleKey) {
+    console.warn('Supabase server client: missing env vars', { url: !!url, serviceRoleKey: !!serviceRoleKey })
     return null
   }
-  return createClient(supabaseUrl, serviceRoleKey)
+  return createClient(url, serviceRoleKey)
 }
