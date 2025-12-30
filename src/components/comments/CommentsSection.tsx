@@ -95,6 +95,11 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
 
       {/* Comment Form */}
       <form onSubmit={(e) => handleSubmit(e)} className="mb-8">
+        {isAuthenticated && (
+          <p className="text-sm text-[var(--color-text-muted)] mb-3">
+            Commenting as <span className="font-medium text-[var(--color-text-primary)]">{user?.display_name}</span>
+          </p>
+        )}
         {!isAuthenticated && (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <input
