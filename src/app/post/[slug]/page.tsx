@@ -6,6 +6,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Calendar, User, ArrowLeft, Globe, Twitter, Github, Linkedin } from 'lucide-react'
 import { createServerClient } from '@/lib/supabase'
 import parse from 'html-react-parser'
+import { CommentsSection } from '@/components/comments/CommentsSection'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -183,6 +184,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
         )}
+
+        {/* Comments */}
+        <CommentsSection postId={post.id} allowComments={post.allow_comments !== false} />
       </article>
 
       {/* Footer */}
