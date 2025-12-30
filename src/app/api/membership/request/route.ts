@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { sendNewRequestNotification } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,6 +105,14 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Notify super admin about new request
+    await sendNewRequestNotification({
+      name,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      writingSample: writing_sample,
+    })
 
     return NextResponse.json({
       success: true,
