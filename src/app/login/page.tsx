@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 
@@ -9,9 +9,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [sessionExpired, setSessionExpired] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      setSessionExpired(true)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,6 +59,11 @@ export default function LoginPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {sessionExpired && (
+            <div className="rounded-md bg-[var(--color-warning-light)] p-4">
+              <p className="text-sm text-[var(--color-warning)]">Your session has expired. Please sign in again.</p>
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-[var(--color-error-light)] p-4">
               <p className="text-sm text-[var(--color-error)]">{error}</p>

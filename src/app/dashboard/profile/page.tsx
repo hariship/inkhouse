@@ -153,7 +153,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] mb-6">
         Profile Settings
       </h1>
 
@@ -177,8 +177,8 @@ export default function ProfilePage() {
           <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
             Avatar
           </label>
-          <div className="flex items-center space-x-4">
-            <div className="w-20 h-20 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden shrink-0">
               {formData.avatar_url ? (
                 <img
                   src={formData.avatar_url}
@@ -186,12 +186,12 @@ export default function ProfilePage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-400">
+                <div className="w-full h-full flex items-center justify-center text-xl sm:text-2xl font-bold text-gray-400">
                   {formData.display_name?.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <label className="inline-flex items-center px-4 py-2 border border-[var(--color-border-medium)] rounded-md cursor-pointer hover:bg-[var(--color-bg-hover)]">
+            <label className="inline-flex items-center px-3 sm:px-4 py-2 border border-[var(--color-border-medium)] rounded-md cursor-pointer hover:bg-[var(--color-bg-hover)] text-sm">
               <Upload className="w-4 h-4 mr-2" />
               {isUploading ? 'Uploading...' : 'Upload'}
               <input
@@ -257,15 +257,15 @@ export default function ProfilePage() {
           </label>
           <div className="space-y-3">
             {['twitter', 'github', 'linkedin'].map((platform) => (
-              <div key={platform} className="flex items-center space-x-2">
-                <span className="w-24 text-sm text-[var(--color-text-secondary)] capitalize">
+              <div key={platform} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="w-20 text-xs sm:text-sm text-[var(--color-text-secondary)] capitalize shrink-0">
                   {platform}
                 </span>
                 <input
                   type="url"
                   value={formData.social_links?.[platform] || ''}
                   onChange={(e) => handleSocialChange(platform, e.target.value)}
-                  className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)] text-sm"
                   placeholder={`https://${platform}.com/...`}
                 />
               </div>
@@ -299,8 +299,8 @@ export default function ProfilePage() {
       </form>
 
       {/* Change Password Section */}
-      <div className="mt-10 pt-10 border-t border-[var(--color-border-light)]">
-        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">
+      <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-[var(--color-border-light)]">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)] mb-6">
           Change Password
         </h2>
 

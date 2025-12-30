@@ -34,15 +34,15 @@
   --color-icon-primary: #6b7280;
   --color-icon-secondary: #9ca3af;
 
-  /* Status Colors */
-  --color-success: #059669;
-  --color-success-light: #d1fae5;
-  --color-error: #dc2626;
-  --color-error-light: #fee2e2;
-  --color-warning: #d97706;
-  --color-warning-light: #fef3c7;
-  --color-info: #3366cc;
-  --color-info-light: #dbeafe;
+  /* Status Colors - Earthy tones */
+  --color-success: #6b7f4e;
+  --color-success-light: #e8ebe0;
+  --color-error: #9c4a3b;
+  --color-error-light: #f5ebe0;
+  --color-warning: #b87333;
+  --color-warning-light: #f5ebe0;
+  --color-info: #5d6d7e;
+  --color-info-light: #e8eaed;
 
   /* Shadow */
   --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -102,15 +102,15 @@
   --color-icon-primary: #9ca3af;
   --color-icon-secondary: #6b7280;
 
-  /* Status Colors */
-  --color-success: #4caf50;
-  --color-success-light: #1b2e1f;
-  --color-error: #f44336;
-  --color-error-light: #2e1b1b;
-  --color-warning: #ff9800;
-  --color-warning-light: #2e2419;
-  --color-info: #2196f3;
-  --color-info-light: #1b242e;
+  /* Status Colors - Earthy tones */
+  --color-success: #8fa875;
+  --color-success-light: #2a3325;
+  --color-error: #d4a596;
+  --color-error-light: #3d2a26;
+  --color-warning: #d4a574;
+  --color-warning-light: #3d3226;
+  --color-info: #8fa0b0;
+  --color-info-light: #2a2e33;
 
   /* Shadow */
   --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.2);

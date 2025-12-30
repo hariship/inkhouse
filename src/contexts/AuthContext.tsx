@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { User, JWTPayload } from '@/types'
 
 interface AuthContextType {
@@ -17,6 +17,45 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const isLoggingOut = useRef(false)
+
+  // Auto-logout when session expires
+  const handleSessionExpiry = useCallback(async () => {
+    if (isLoggingOut.current) return
+    isLoggingOut.current = true
+
+    setUser(null)
+    // Redirect to login with a message
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/admin')) {
+      window.location.href = '/login?expired=true'
+    }
+
+    isLoggingOut.current = false
+  }, [])
+
+  // Set up global fetch interceptor for 401 responses
+  useEffect(() => {
+    const originalFetch = window.fetch
+
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args)
+
+      // Check if we got a 401 and it's not the auth endpoints
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
+      const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/logout')
+
+      if (response.status === 401 && !isAuthEndpoint && user) {
+        // Session expired, trigger auto-logout
+        handleSessionExpiry()
+      }
+
+      return response
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [user, handleSessionExpiry])
 
   const refreshUser = useCallback(async () => {
     try {

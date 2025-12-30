@@ -61,18 +61,18 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
             My Posts
           </h1>
-          <p className="text-[var(--color-text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--color-text-secondary)]">
             Welcome back, {user?.display_name}
           </p>
         </div>
         <Link
           href="/dashboard/new"
-          className="btn-primary inline-flex items-center px-4 py-2 rounded-md"
+          className="btn-primary inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto"
         >
           <PenLine className="w-4 h-4 mr-2" />
           New Post
@@ -80,30 +80,30 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-[var(--color-bg-card)] rounded-lg p-4 shadow-[var(--shadow-light)]">
-          <p className="text-3xl font-bold text-[var(--color-text-primary)]">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
+        <div className="bg-[var(--color-bg-card)] rounded-lg p-3 sm:p-4 shadow-[var(--shadow-light)]">
+          <p className="text-xl sm:text-3xl font-bold text-[var(--color-text-primary)]">
             {posts.length}
           </p>
-          <p className="text-[var(--color-text-secondary)]">Total Posts</p>
+          <p className="text-xs sm:text-base text-[var(--color-text-secondary)]">Total</p>
         </div>
-        <div className="bg-[var(--color-bg-card)] rounded-lg p-4 shadow-[var(--shadow-light)]">
-          <p className="text-3xl font-bold text-[var(--color-success)]">{publishedCount}</p>
-          <p className="text-[var(--color-text-secondary)]">Published</p>
+        <div className="bg-[var(--color-bg-card)] rounded-lg p-3 sm:p-4 shadow-[var(--shadow-light)]">
+          <p className="text-xl sm:text-3xl font-bold text-[var(--color-success)]">{publishedCount}</p>
+          <p className="text-xs sm:text-base text-[var(--color-text-secondary)]">Published</p>
         </div>
-        <div className="bg-[var(--color-bg-card)] rounded-lg p-4 shadow-[var(--shadow-light)]">
-          <p className="text-3xl font-bold text-[var(--color-warning)]">{draftCount}</p>
-          <p className="text-[var(--color-text-secondary)]">Drafts</p>
+        <div className="bg-[var(--color-bg-card)] rounded-lg p-3 sm:p-4 shadow-[var(--shadow-light)]">
+          <p className="text-xl sm:text-3xl font-bold text-[var(--color-warning)]">{draftCount}</p>
+          <p className="text-xs sm:text-base text-[var(--color-text-secondary)]">Drafts</p>
         </div>
       </div>
 
       {/* Filter */}
-      <div className="flex space-x-2 mb-6">
+      <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
         {(['all', 'published', 'draft'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap ${
               filter === f
                 ? 'btn-primary'
                 : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
@@ -131,72 +131,74 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredPosts.map((post) => (
             <div
               key={post.id}
-              className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4 flex justify-between items-center"
+              className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-3 sm:p-4"
             >
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <h3 className="font-medium text-[var(--color-text-primary)]">
-                    {post.title}
-                  </h3>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      post.status === 'published'
-                        ? 'bg-[var(--color-success-light)] text-[var(--color-success)]'
-                        : 'bg-[var(--color-warning-light)] text-[var(--color-warning)]'
-                    }`}
-                  >
-                    {post.status}
-                  </span>
-                  {post.featured && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                      Featured
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium text-[var(--color-text-primary)] text-sm sm:text-base truncate max-w-[200px] sm:max-w-none">
+                      {post.title}
+                    </h3>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                        post.status === 'published'
+                          ? 'bg-[var(--color-success-light)] text-[var(--color-success)]'
+                          : 'bg-[var(--color-warning-light)] text-[var(--color-warning)]'
+                      }`}
+                    >
+                      {post.status}
                     </span>
+                    {post.featured && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 shrink-0">
+                        Featured
+                      </span>
+                    )}
+                  </div>
+                  {post.description && (
+                    <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-1 line-clamp-1">
+                      {post.description}
+                    </p>
                   )}
-                </div>
-                {post.description && (
-                  <p className="text-sm text-[var(--color-text-secondary)] mt-1 line-clamp-1">
-                    {post.description}
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1 sm:mt-2">
+                    {new Date(post.pub_date).toLocaleDateString()}
+                    {post.category && ` · ${post.category}`}
                   </p>
-                )}
-                <p className="text-xs text-[var(--color-text-muted)] mt-2">
-                  {new Date(post.pub_date).toLocaleDateString()}
-                  {post.category && ` · ${post.category}`}
-                </p>
-              </div>
-              <div className="flex items-center space-x-2 ml-4">
-                {post.status === 'published' && (
+                </div>
+                <div className="flex items-center space-x-1 sm:space-x-2 sm:ml-4">
+                  {post.status === 'published' && (
+                    <Link
+                      href={`/post/${post.normalized_title}`}
+                      className="relative group p-1.5 sm:p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
+                    >
+                      <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="hidden sm:block absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        View
+                      </span>
+                    </Link>
+                  )}
                   <Link
-                    href={`/post/${post.normalized_title}`}
-                    className="relative group p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
+                    href={`/dashboard/edit/${post.id}`}
+                    className="relative group p-1.5 sm:p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
                   >
-                    <Eye className="w-5 h-5" />
-                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      View
+                    <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:block absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Edit
                     </span>
                   </Link>
-                )}
-                <Link
-                  href={`/dashboard/edit/${post.id}`}
-                  className="relative group p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
-                >
-                  <Edit2 className="w-5 h-5" />
-                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Edit
-                  </span>
-                </Link>
-                <button
-                  onClick={() => handleDelete(post.id)}
-                  className="relative group p-2 text-[var(--color-error)] hover:opacity-80"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Delete
-                  </span>
-                </button>
+                  <button
+                    onClick={() => handleDelete(post.id)}
+                    className="relative group p-1.5 sm:p-2 text-[var(--color-error)] hover:opacity-80"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:block absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Delete
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}

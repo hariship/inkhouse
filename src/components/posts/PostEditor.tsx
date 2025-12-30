@@ -227,26 +227,26 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header - Compact */}
-      <div className="flex justify-between items-center mb-3">
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
+        <h1 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)]">
           {post ? 'Edit Post' : 'New Post'}
         </h1>
         <div className="flex items-center space-x-2">
           {lastSaved && !post && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 hidden sm:inline">
               Saved {lastSaved.toLocaleTimeString()}
             </span>
           )}
           <button
             type="button"
             onClick={() => setIsPreview(!isPreview)}
-            className="inline-flex items-center px-2 py-1.5 border border-[var(--color-border-medium)] rounded text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+            className="inline-flex items-center px-2 py-1.5 border border-[var(--color-border-medium)] rounded text-xs sm:text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
           >
             {isPreview ? (
               'Edit'
             ) : (
               <>
-                <Eye className="w-4 h-4 mr-1" />
+                <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                 Preview
               </>
             )}
@@ -255,9 +255,9 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
             <button
               type="button"
               onClick={saveDraft}
-              className="inline-flex items-center px-2 py-1.5 border border-[var(--color-border-medium)] rounded text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+              className="inline-flex items-center px-2 py-1.5 border border-[var(--color-border-medium)] rounded text-xs sm:text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
             >
-              <Save className="w-4 h-4 mr-1" />
+              <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               Draft
             </button>
           )}
@@ -403,13 +403,13 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
                 }
               }}
               modules={quillModules}
-              className="h-[600px]"
+              className="h-[350px] sm:h-[600px]"
             />
           </div>
         </div>
 
         {/* Options */}
-        <div className="flex items-center space-x-6 pt-12">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-8 sm:pt-12">
           <label className="inline-flex items-center">
             <input
               type="checkbox"
@@ -437,12 +437,12 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end space-x-4 pt-6 border-t border-[var(--color-border-light)]">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-4 pt-6 border-t border-[var(--color-border-light)]">
           <button
             type="button"
             onClick={() => handleSubmit('draft')}
             disabled={isLoading || !formData.title || !formData.content}
-            className="px-6 py-2 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2 border border-[var(--color-border-medium)] rounded-md text-sm sm:text-base text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50"
           >
             {isLoading ? 'Saving...' : 'Save as Draft'}
           </button>
@@ -450,7 +450,7 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
             type="button"
             onClick={() => handleSubmit('published')}
             disabled={isLoading || !formData.title || !formData.content}
-            className="btn-primary px-6 py-2 rounded-md disabled:opacity-50"
+            className="w-full sm:w-auto btn-primary px-4 sm:px-6 py-2 rounded-md text-sm sm:text-base disabled:opacity-50"
           >
             {isLoading ? 'Publishing...' : 'Publish'}
           </button>

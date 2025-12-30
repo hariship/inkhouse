@@ -80,11 +80,101 @@ export default function MembersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] mb-6">
         Manage Members ({users.length})
       </h1>
 
-      <div className="bg-[var(--color-bg-card)] rounded-lg shadow overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="sm:hidden space-y-3">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="bg-[var(--color-bg-card)] rounded-lg shadow p-4"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center">
+                {user.avatar_url ? (
+                  <Image
+                    src={user.avatar_url}
+                    alt={user.display_name}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-[var(--color-text-muted)]" />
+                  </div>
+                )}
+                <div className="ml-3">
+                  <div className="font-medium text-[var(--color-text-primary)] text-sm">
+                    {user.display_name}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    @{user.username}
+                  </div>
+                </div>
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  onClick={() =>
+                    handleUpdateRole(
+                      user.id,
+                      user.role === 'admin' ? 'writer' : 'admin'
+                    )
+                  }
+                  disabled={processingId === user.id}
+                  className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-info)]"
+                >
+                  <Shield className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() =>
+                    handleUpdateStatus(
+                      user.id,
+                      user.status === 'active' ? 'suspended' : 'active'
+                    )
+                  }
+                  disabled={processingId === user.id}
+                  className={`p-2 ${
+                    user.status === 'active'
+                      ? 'text-[var(--color-text-muted)] hover:text-[var(--color-error)]'
+                      : 'text-[var(--color-error)] hover:text-[var(--color-success)]'
+                  }`}
+                >
+                  <Ban className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span
+                className={`px-2 py-0.5 text-xs rounded-full ${
+                  user.role === 'admin'
+                    ? 'bg-[var(--color-info-light)] text-[var(--color-info)]'
+                    : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'
+                }`}
+              >
+                {user.role}
+              </span>
+              <span
+                className={`px-2 py-0.5 text-xs rounded-full ${
+                  user.status === 'active'
+                    ? 'bg-[var(--color-success-light)] text-[var(--color-success)]'
+                    : 'bg-[var(--color-error-light)] text-[var(--color-error)]'
+                }`}
+              >
+                {user.status}
+              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                Joined {new Date(user.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden sm:block bg-[var(--color-bg-card)] rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-[var(--color-border-light)]">
           <thead className="bg-[var(--color-bg-tertiary)]">
             <tr>

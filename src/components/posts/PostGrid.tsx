@@ -153,7 +153,7 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
         </div>
       ) : (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => (
+          {posts.map((post, index) => (
             <article
               key={post.id}
               className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col"
@@ -166,6 +166,7 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
                       alt={post.title}
                       fill
                       className="object-cover"
+                      priority={index === 0}
                     />
                   </div>
                 </Link>

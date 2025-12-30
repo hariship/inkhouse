@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -16,8 +16,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isAdmin = user?.role === 'admin'
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
@@ -48,8 +54,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-secondary)]">
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-[var(--color-bg-card)] border-b border-[var(--color-border-light)] flex items-center justify-between px-4 z-40">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        <Link href="/" className="text-xl font-bold text-[var(--color-text-primary)]">
+          Inkhouse
+        </Link>
+        <ThemeToggle />
+      </header>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-[var(--color-bg-card)] border-r border-[var(--color-border-light)]">
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-[var(--color-bg-card)] border-r border-[var(--color-border-light)] z-50 transform transition-transform duration-200 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
@@ -58,7 +88,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 Inkhouse
               </span>
             </Link>
-            <ThemeToggle />
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* User info */}
@@ -159,8 +197,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       {/* Main content */}
-      <main className="ml-64 min-h-screen">
-        <div className="p-8">{children}</div>
+      <main className="lg:ml-64 min-h-screen pt-14 lg:pt-0">
+        <div className="p-4 lg:p-8">{children}</div>
       </main>
     </div>
   )

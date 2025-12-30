@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { X, Upload, Loader2 } from 'lucide-react'
 import '@excalidraw/excalidraw/index.css'
 
@@ -18,6 +18,7 @@ export function ExcalidrawModal({ isOpen, onClose, onInsert, theme }: Excalidraw
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const closedViaBackButton = useRef(false)
 
   // Load Excalidraw only on client side when modal opens
   useEffect(() => {
@@ -40,6 +41,33 @@ export function ExcalidrawModal({ isOpen, onClose, onInsert, theme }: Excalidraw
       setIsExporting(false)
     }
   }, [isOpen])
+
+  // Handle browser back button - close modal instead of navigating away
+  useEffect(() => {
+    if (!isOpen) {
+      closedViaBackButton.current = false
+      return
+    }
+
+    // Push a state to history when modal opens
+    window.history.pushState({ modal: 'excalidraw' }, '')
+
+    const handlePopState = () => {
+      // Mark that we're closing via back button
+      closedViaBackButton.current = true
+      onClose()
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      // Only go back if modal was closed via X button (not back button)
+      if (!closedViaBackButton.current) {
+        window.history.back()
+      }
+    }
+  }, [isOpen, onClose])
 
   const handleExport = useCallback(async () => {
     if (!excalidrawAPI || !exportToBlob) {

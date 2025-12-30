@@ -74,16 +74,16 @@ export default function AdminPostsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] mb-6">
         All Posts ({posts.length})
       </h1>
 
-      <div className="flex space-x-2 mb-6">
+      <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
         {(['all', 'published', 'draft', 'archived'] as const).map((status) => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap ${
               statusFilter === status
                 ? 'btn-primary'
                 : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'
@@ -94,7 +94,78 @@ export default function AdminPostsPage() {
         ))}
       </div>
 
-      <div className="bg-[var(--color-bg-card)] rounded-lg shadow overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="sm:hidden space-y-3">
+        {filteredPosts.map((post) => (
+          <div
+            key={post.id}
+            className="bg-[var(--color-bg-card)] rounded-lg shadow p-4"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-[var(--color-text-primary)] text-sm truncate">
+                  {post.title}
+                </h3>
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  by {post.author?.display_name || 'Unknown'}
+                </p>
+              </div>
+              <div className="flex space-x-1 shrink-0">
+                {post.status === 'published' && (
+                  <Link
+                    href={`/post/${post.normalized_title}`}
+                    className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Link>
+                )}
+                <Link
+                  href={`/dashboard/edit/${post.id}`}
+                  className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Link>
+                <button
+                  onClick={() => handleUpdateStatus(post.id, 'archived')}
+                  className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-warning)]"
+                >
+                  <Archive className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(post.id)}
+                  className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span
+                className={`px-2 py-0.5 text-xs rounded-full ${
+                  post.status === 'published'
+                    ? 'bg-[var(--color-success-light)] text-[var(--color-success)]'
+                    : post.status === 'draft'
+                    ? 'bg-[var(--color-warning-light)] text-[var(--color-warning)]'
+                    : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]'
+                }`}
+              >
+                {post.status}
+              </span>
+              {post.category && (
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {post.category}
+                </span>
+              )}
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {new Date(post.pub_date || post.updated_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden sm:block bg-[var(--color-bg-card)] rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-[var(--color-border-light)]">
           <thead className="bg-[var(--color-bg-tertiary)]">
             <tr>

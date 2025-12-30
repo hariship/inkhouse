@@ -123,30 +123,30 @@ function RequestsContent() {
           </div>
         </div>
       )}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
             Membership Requests
           </h1>
-          <p className="text-[var(--color-text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--color-text-secondary)]">
             Review and manage join requests
           </p>
         </div>
         <Link
           href="/admin"
-          className="text-[var(--color-link)] hover:text-[var(--color-link)]"
+          className="text-sm text-[var(--color-link)] hover:text-[var(--color-link)]"
         >
           Back to Admin
         </Link>
       </div>
 
       <div className="mb-6">
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 overflow-x-auto pb-2">
           {['pending', 'approved', 'rejected'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap ${
                 statusFilter === status
                   ? 'btn-primary'
                   : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
@@ -175,31 +175,31 @@ function RequestsContent() {
           {requests.map((request) => (
             <div
               key={request.id}
-              className="bg-[var(--color-bg-card)] rounded-lg shadow p-6"
+              className="bg-[var(--color-bg-card)] rounded-lg shadow p-4 sm:p-6"
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    <h3 className="text-lg font-medium text-[var(--color-text-primary)]">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-medium text-[var(--color-text-primary)]">
                       {request.name}
                     </h3>
-                    <span className="text-sm text-[var(--color-text-muted)]">
+                    <span className="text-xs sm:text-sm text-[var(--color-text-muted)]">
                       @{request.username}
                     </span>
                   </div>
-                  <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                  <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-1 break-all">
                     {request.email}
                   </p>
                   {request.bio && (
-                    <p className="text-[var(--color-text-secondary)] mt-2">
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-2">
                       {request.bio}
                     </p>
                   )}
                   <div className="mt-3">
-                    <h4 className="text-sm font-medium text-[var(--color-text-secondary)]">
+                    <h4 className="text-xs sm:text-sm font-medium text-[var(--color-text-secondary)]">
                       Why they want to join:
                     </h4>
-                    <p className="text-[var(--color-text-secondary)] mt-1">
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">
                       {request.writing_sample}
                     </p>
                   </div>
@@ -208,7 +208,7 @@ function RequestsContent() {
                       href={request.portfolio_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[var(--color-link)] hover:text-[var(--color-link)] text-sm mt-2 inline-block"
+                      className="text-[var(--color-link)] hover:text-[var(--color-link)] text-xs sm:text-sm mt-2 inline-block"
                     >
                       View Portfolio
                     </a>
@@ -219,18 +219,18 @@ function RequestsContent() {
                 </div>
 
                 {statusFilter === 'pending' && (
-                  <div className="flex space-x-2 ml-4">
+                  <div className="flex space-x-2 sm:ml-4 shrink-0">
                     <button
                       onClick={() => handleAction(request.id, 'approve')}
                       disabled={processingId === request.id}
-                      className="px-4 py-2 bg-[var(--color-success)] text-white rounded-md hover:opacity-80 disabled:opacity-50 text-sm"
+                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-[var(--color-success)] text-white rounded-md hover:opacity-80 disabled:opacity-50 text-xs sm:text-sm"
                     >
                       {processingId === request.id ? '...' : 'Approve'}
                     </button>
                     <button
                       onClick={() => handleAction(request.id, 'reject')}
                       disabled={processingId === request.id}
-                      className="px-4 py-2 bg-[var(--color-error)] text-white rounded-md hover:opacity-80 disabled:opacity-50 text-sm"
+                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-[var(--color-error)] text-white rounded-md hover:opacity-80 disabled:opacity-50 text-xs sm:text-sm"
                     >
                       {processingId === request.id ? '...' : 'Reject'}
                     </button>
