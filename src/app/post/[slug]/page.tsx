@@ -1,62 +1,57 @@
-'use client'
-
-import { useState, useEffect, use } from 'react'
+import { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Navbar } from '@/components/layout/Navbar'
-import { PostWithAuthor } from '@/types'
 import { Calendar, User, ArrowLeft, Globe, Twitter, Github, Linkedin } from 'lucide-react'
+import { createServerClient } from '@/lib/supabase'
 import parse from 'html-react-parser'
 
-export default function PostPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params)
-  const [post, setPost] = useState<PostWithAuthor | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+// Revalidate every 60 seconds
+export const revalidate = 60
 
-  useEffect(() => {
-    const fetchPost = async () => {
-      try {
-        const response = await fetch(`/api/posts/${slug}`)
-        const data = await response.json()
+async function getPost(slug: string) {
+  const supabase = createServerClient()
+  if (!supabase) return null
 
-        if (data.success) {
-          setPost(data.data)
-        }
-      } catch (error) {
-        console.error('Failed to fetch post:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  const { data: post } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio, website_url, social_links)
+    `)
+    .eq('normalized_title', slug)
+    .eq('status', 'published')
+    .single()
 
-    fetchPost()
-  }, [slug])
+  return post
+}
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg-secondary)]">
-        <Navbar />
-        <div className="flex justify-center py-24">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
-        </div>
-      </div>
-    )
-  }
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  const post = await getPost(slug)
 
   if (!post) {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg-secondary)]">
-        <Navbar />
-        <div className="max-w-3xl mx-auto px-4 py-24 text-center">
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-4">
-            Post not found
-          </h1>
-          <Link href="/" className="text-[var(--color-link)] hover:text-[var(--color-link)]">
-            Back to home
-          </Link>
-        </div>
-      </div>
-    )
+    return { title: 'Post not found - Inkhouse' }
+  }
+
+  return {
+    title: `${post.title} - Inkhouse`,
+    description: post.description || post.title,
+    openGraph: {
+      title: post.title,
+      description: post.description || post.title,
+      images: post.image_url ? [post.image_url] : [],
+    },
+  }
+}
+
+export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  if (!post) {
+    notFound()
   }
 
   const socialIcons: Record<string, React.ReactNode> = {
@@ -106,12 +101,13 @@ export default function PostPage({ params }: { params: Promise<{ slug: string }>
 
         {/* Featured Image */}
         {post.image_url && (
-          <div className="relative h-96 w-full mb-8 rounded-lg overflow-hidden">
+          <div className="relative w-full mb-8 rounded-lg overflow-hidden">
             <Image
               src={post.image_url}
               alt={post.title}
-              fill
-              className="object-cover"
+              width={800}
+              height={400}
+              className="w-full h-auto object-cover rounded-lg"
               priority
             />
           </div>
@@ -119,7 +115,7 @@ export default function PostPage({ params }: { params: Promise<{ slug: string }>
 
         {/* Content */}
         <div className="prose dark:prose-invert max-w-none mb-12">
-          {parse(post.content)}
+          {parse(post.content.replace(/&nbsp;/g, ' '))}
         </div>
 
         {/* Author Card */}

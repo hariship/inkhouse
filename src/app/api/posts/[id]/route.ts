@@ -55,10 +55,16 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: post,
     })
+
+    // Cache published posts for 60 seconds on Vercel edge
+    if (post.status === 'published') {
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    }
+    return response
   } catch (error) {
     console.error('Fetch post error:', error)
     return NextResponse.json(

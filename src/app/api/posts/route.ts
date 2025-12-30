@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: posts,
       pagination: {
@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil((count || 0) / limit),
       },
     })
+
+    // Cache public posts list for 60 seconds on Vercel edge
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('Fetch posts error:', error)
     return NextResponse.json(

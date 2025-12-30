@@ -43,13 +43,17 @@ export async function GET(
       console.error('Fetch posts error:', postsError)
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         author,
         posts: posts || [],
       },
     })
+
+    // Cache author pages for 60 seconds on Vercel edge
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('Fetch author error:', error)
     return NextResponse.json(

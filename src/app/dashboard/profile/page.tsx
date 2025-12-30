@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ProfileFormData } from '@/types'
-import { Upload } from 'lucide-react'
+import { Upload, Eye, EyeOff } from 'lucide-react'
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
@@ -19,6 +19,21 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
 
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  })
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -31,6 +46,54 @@ export default function ProfilePage() {
       ...prev,
       social_links: { ...prev.social_links, [platform]: value },
     }))
+  }
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setPasswordData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordLoading(true)
+    setPasswordError('')
+    setPasswordSuccess(false)
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match')
+      setPasswordLoading(false)
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters')
+      setPasswordLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setPasswordSuccess(true)
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        setPasswordError(data.error || 'Failed to change password')
+      }
+    } catch {
+      setPasswordError('Network error')
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,6 +297,115 @@ export default function ProfilePage() {
           </button>
         </div>
       </form>
+
+      {/* Change Password Section */}
+      <div className="mt-10 pt-10 border-t border-[var(--color-border-light)]">
+        <h2 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">
+          Change Password
+        </h2>
+
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          {passwordError && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <p className="text-sm text-red-700 dark:text-red-400">{passwordError}</p>
+            </div>
+          )}
+
+          {passwordSuccess && (
+            <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
+              <p className="text-sm text-green-700 dark:text-green-400">
+                Password changed successfully!
+              </p>
+            </div>
+          )}
+
+          {/* Current Password */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              Current Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPasswords.current ? 'text' : 'password'}
+                name="currentPassword"
+                value={passwordData.currentPassword}
+                onChange={handlePasswordChange}
+                required
+                className="w-full px-4 py-2 pr-10 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPasswords.new ? 'text' : 'password'}
+                name="newPassword"
+                value={passwordData.newPassword}
+                onChange={handlePasswordChange}
+                required
+                minLength={8}
+                className="w-full px-4 py-2 pr-10 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords((prev) => ({ ...prev, new: !prev.new }))}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              Must be at least 8 characters
+            </p>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPasswords.confirm ? 'text' : 'password'}
+                name="confirmPassword"
+                value={passwordData.confirmPassword}
+                onChange={handlePasswordChange}
+                required
+                className="w-full px-4 py-2 pr-10 border border-[var(--color-border-medium)] rounded-md text-[var(--color-text-primary)] bg-[var(--color-bg-card)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="px-6 py-2 rounded-md bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {passwordLoading ? 'Changing...' : 'Change Password'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

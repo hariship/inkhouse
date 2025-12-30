@@ -1,75 +1,73 @@
-'use client'
-
-import { useState, useEffect, use } from 'react'
+import { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Navbar } from '@/components/layout/Navbar'
-import { PublicUser, Post } from '@/types'
 import { Calendar, User, Globe, Twitter, Github, Linkedin, ArrowLeft } from 'lucide-react'
+import { createServerClient } from '@/lib/supabase'
 
-interface AuthorData {
-  author: PublicUser
-  posts: Post[]
+// Revalidate every 60 seconds
+export const revalidate = 60
+
+async function getAuthorData(username: string) {
+  const supabase = createServerClient()
+  if (!supabase) return null
+
+  // Get author
+  const { data: author } = await supabase
+    .from('users')
+    .select('id, username, display_name, avatar_url, bio, website_url, social_links')
+    .eq('username', username)
+    .eq('status', 'active')
+    .single()
+
+  if (!author) return null
+
+  // Get author's published posts
+  const { data: posts } = await supabase
+    .from('posts')
+    .select('id, title, normalized_title, description, image_url, category, pub_date')
+    .eq('author_id', author.id)
+    .eq('status', 'published')
+    .order('pub_date', { ascending: false })
+
+  return { author, posts: posts || [] }
 }
 
-export default function AuthorPage({ params }: { params: Promise<{ username: string }> }) {
-  const { username } = use(params)
-  const [data, setData] = useState<AuthorData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
+  const { username } = await params
+  const data = await getAuthorData(username)
 
-  useEffect(() => {
-    const fetchAuthor = async () => {
-      try {
-        const response = await fetch(`/api/author/${username}`)
-        const result = await response.json()
+  if (!data) {
+    return { title: 'Author not found - Inkhouse' }
+  }
 
-        if (result.success) {
-          setData(result.data)
-        }
-      } catch (error) {
-        console.error('Failed to fetch author:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  return {
+    title: `${data.author.display_name} - Inkhouse`,
+    description: data.author.bio || `Posts by ${data.author.display_name}`,
+    openGraph: {
+      title: data.author.display_name,
+      description: data.author.bio || `Posts by ${data.author.display_name}`,
+      images: data.author.avatar_url ? [data.author.avatar_url] : [],
+    },
+  }
+}
 
-    fetchAuthor()
-  }, [username])
+export default async function AuthorPage({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = await params
+  const data = await getAuthorData(username)
+
+  if (!data) {
+    notFound()
+  }
+
+  const { author, posts } = data
 
   const socialIcons: Record<string, React.ReactNode> = {
     twitter: <Twitter className="w-5 h-5" />,
     github: <Github className="w-5 h-5" />,
     linkedin: <Linkedin className="w-5 h-5" />,
   }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg-secondary)]">
-        <Navbar />
-        <div className="flex justify-center py-24">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="min-h-screen bg-[var(--color-bg-secondary)]">
-        <Navbar />
-        <div className="max-w-3xl mx-auto px-4 py-24 text-center">
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-4">
-            Author not found
-          </h1>
-          <Link href="/" className="text-[var(--color-link)] hover:text-[var(--color-link)]">
-            Back to home
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const { author, posts } = data
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-secondary)]">

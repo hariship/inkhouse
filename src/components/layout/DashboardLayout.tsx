@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PenLine, FileText, User, LogOut, Home, Users, Settings } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -13,6 +15,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -29,9 +32,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/admin/posts', label: 'All Posts', icon: FileText },
   ]
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true)
+  }
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutConfirm(false)
     await logout()
     window.location.href = '/'
+  }
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false)
   }
 
   return (
@@ -124,8 +136,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Logout */}
           <div className="p-4 border-t border-[var(--color-border-light)]">
             <button
-              onClick={handleLogout}
-              className="flex items-center space-x-3 px-3 py-2 w-full rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+              onClick={handleLogoutClick}
+              className="flex items-center space-x-3 px-3 py-2 w-full rounded-md text-[var(--color-text-secondary)] hover:bg-[#f5ebe0] hover:text-[#9c4a3b] dark:hover:bg-[#3d2a26] dark:hover:text-[#d4a596] transition-colors"
             >
               <LogOut className="w-5 h-5" />
               <span>Logout</span>
@@ -133,6 +145,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
       </aside>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmLabel="Logout"
+        cancelLabel="Cancel"
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+        variant="danger"
+      />
 
       {/* Main content */}
       <main className="ml-64 min-h-screen">
