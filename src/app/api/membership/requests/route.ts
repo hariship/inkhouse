@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, isAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
     // Check if user is admin
     const authUser = await getAuthUser()
-    if (!authUser || authUser.role !== 'admin') {
+    if (!authUser || !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }

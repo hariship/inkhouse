@@ -53,8 +53,47 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
+      <div className="animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
+          <div>
+            <div className="h-7 w-32 bg-[var(--color-bg-tertiary)] rounded mb-2" />
+            <div className="h-5 w-48 bg-[var(--color-bg-tertiary)] rounded" />
+          </div>
+          <div className="h-10 w-28 bg-[var(--color-bg-tertiary)] rounded-md" />
+        </div>
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-[var(--color-bg-card)] rounded-lg p-3 sm:p-4 shadow-[var(--shadow-light)]">
+              <div className="h-8 w-12 bg-[var(--color-bg-tertiary)] rounded mb-2" />
+              <div className="h-4 w-16 bg-[var(--color-bg-tertiary)] rounded" />
+            </div>
+          ))}
+        </div>
+        {/* Filter skeleton */}
+        <div className="flex space-x-2 mb-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 w-20 bg-[var(--color-bg-tertiary)] rounded-md" />
+          ))}
+        </div>
+        {/* Posts skeleton */}
+        <div className="space-y-3 sm:space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-3 sm:p-4">
+              <div className="flex justify-between items-center">
+                <div className="flex-1">
+                  <div className="h-5 w-48 bg-[var(--color-bg-tertiary)] rounded mb-2" />
+                  <div className="h-4 w-32 bg-[var(--color-bg-tertiary)] rounded" />
+                </div>
+                <div className="flex space-x-2">
+                  <div className="h-8 w-8 bg-[var(--color-bg-tertiary)] rounded" />
+                  <div className="h-8 w-8 bg-[var(--color-bg-tertiary)] rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

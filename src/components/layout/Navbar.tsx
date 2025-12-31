@@ -67,9 +67,12 @@ export function Navbar() {
 
           <ThemeToggle />
 
-          {!isLoading && (
-            <>
-              {isAuthenticated ? (
+          {isLoading ? (
+            <div className="flex items-center space-x-4">
+              <div className="w-20 h-5 bg-[var(--color-bg-tertiary)] rounded animate-pulse" />
+              <div className="w-16 h-9 bg-[var(--color-bg-tertiary)] rounded-md animate-pulse" />
+            </div>
+          ) : isAuthenticated ? (
                 <>
                   <div className="relative">
                     <Link
@@ -136,8 +139,6 @@ export function Navbar() {
                   </Link>
                 </>
               )}
-            </>
-          )}
         </nav>
       </div>
     </header>

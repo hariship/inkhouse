@@ -9,15 +9,17 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   const { user, isLoading, isAuthenticated } = useAuth()
   const router = useRouter()
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
         router.push('/login')
-      } else if (requiredRole === 'admin' && user?.role !== 'admin') {
+      } else if (requiredRole === 'admin' && !isAdmin) {
         router.push('/dashboard')
       }
     }
-  }, [isLoading, isAuthenticated, user, requiredRole, router])
+  }, [isLoading, isAuthenticated, isAdmin, requiredRole, router])
 
   if (isLoading) {
     return (
@@ -31,7 +33,7 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     return null
   }
 
-  if (requiredRole === 'admin' && user?.role !== 'admin') {
+  if (requiredRole === 'admin' && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

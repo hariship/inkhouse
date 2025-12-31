@@ -60,8 +60,25 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
+      <div className="max-w-6xl mx-auto animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-center mb-3">
+          <div className="h-6 w-32 bg-[var(--color-bg-tertiary)] rounded" />
+          <div className="flex space-x-2">
+            <div className="h-8 w-16 bg-[var(--color-bg-tertiary)] rounded" />
+            <div className="h-8 w-16 bg-[var(--color-bg-tertiary)] rounded" />
+          </div>
+        </div>
+        {/* Form skeleton */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-2 h-10 bg-[var(--color-bg-tertiary)] rounded" />
+            <div className="h-10 bg-[var(--color-bg-tertiary)] rounded" />
+            <div className="h-10 bg-[var(--color-bg-tertiary)] rounded" />
+          </div>
+          <div className="h-10 bg-[var(--color-bg-tertiary)] rounded" />
+          <div className="h-[400px] bg-[var(--color-bg-tertiary)] rounded" />
+        </div>
       </div>
     )
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, isAdmin } from '@/lib/auth'
 import { logUserRoleChange, logUserStatusChange } from '@/lib/audit'
 
 export async function PATCH(
@@ -9,7 +9,7 @@ export async function PATCH(
 ) {
   try {
     const authUser = await getAuthUser()
-    if (!authUser || authUser.role !== 'admin') {
+    if (!authUser || !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }

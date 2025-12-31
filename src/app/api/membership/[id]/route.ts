@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getAuthUser, hashPassword, generateTempPassword } from '@/lib/auth'
+import { getAuthUser, hashPassword, generateTempPassword, isAdmin } from '@/lib/auth'
 import { sendWelcomeEmail, sendRejectionEmail } from '@/lib/email'
 import { logMembershipApprove, logMembershipReject } from '@/lib/audit'
 
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const authUser = await getAuthUser()
-    if (!authUser || authUser.role !== 'admin') {
+    if (!authUser || !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
@@ -59,7 +59,7 @@ export async function PATCH(
 ) {
   try {
     const authUser = await getAuthUser()
-    if (!authUser || authUser.role !== 'admin') {
+    if (!authUser || !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
