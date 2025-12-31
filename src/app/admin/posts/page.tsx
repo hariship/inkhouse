@@ -219,37 +219,53 @@ export default function AdminPostsPage() {
                   {new Date(post.pub_date || post.updated_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <div className="flex justify-end space-x-2">
+                  <div className="flex justify-end space-x-1">
                     {post.status === 'published' && (
-                      <Link
-                        href={`/post/${post.normalized_title}`}
-                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
-                        title="View"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
+                      <div className="relative group">
+                        <Link
+                          href={`/post/${post.normalized_title}`}
+                          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)] block"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          View
+                        </span>
+                      </div>
                     )}
-                    <Link
-                      href={`/dashboard/edit/${post.id}`}
-                      className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)]"
-                      title="Edit"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Link>
-                    <button
-                      onClick={() => handleUpdateStatus(post.id, 'archived')}
-                      className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-warning)]"
-                      title="Archive"
-                    >
-                      <Archive className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(post.id)}
-                      className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="relative group">
+                      <Link
+                        href={`/dashboard/edit/${post.id}`}
+                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-link)] block"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Link>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        Edit
+                      </span>
+                    </div>
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleUpdateStatus(post.id, 'archived')}
+                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-warning)]"
+                      >
+                        <Archive className="w-4 h-4" />
+                      </button>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        Archive
+                      </span>
+                    </div>
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleDelete(post.id)}
+                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        Delete
+                      </span>
+                    </div>
                   </div>
                 </td>
               </tr>

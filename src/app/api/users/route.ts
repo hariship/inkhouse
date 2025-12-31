@@ -21,10 +21,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: users, error } = await supabase
+    // Parse pagination params
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')))
+    const offset = (page - 1) * limit
+
+    const { data: users, error, count } = await supabase
       .from('users')
-      .select('id, email, username, display_name, bio, avatar_url, role, status, created_at, last_login_at')
+      .select('id, email, username, display_name, bio, avatar_url, role, status, created_at, last_login_at', { count: 'exact' })
       .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
     if (error) {
       console.error('Fetch users error:', error)
@@ -37,6 +44,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: users,
+      meta: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
     })
   } catch (error) {
     console.error('Fetch users error:', error)
