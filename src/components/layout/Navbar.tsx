@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { PenLine, LogIn, User, X } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
@@ -28,13 +29,28 @@ export function Navbar() {
 
   return (
     <>
-      <header className="bg-[var(--color-bg-primary)] border-b border-[var(--color-border-light)]">
+      <header className="bg-[var(--color-bg-navbar)] border-b border-[var(--color-border-light)]">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-        <Link
-          href="/"
-          className="text-2xl font-bold text-[var(--color-text-primary)]"
-        >
-          Inkhouse
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="Inkhouse"
+            width={80}
+            height={80}
+            className="h-20 w-20 -my-4 dark:hidden"
+            priority
+          />
+          <Image
+            src="/logo-dark.png"
+            alt="Inkhouse"
+            width={80}
+            height={80}
+            className="h-20 w-20 -my-4 hidden dark:block"
+            priority
+          />
+          <span className="hidden sm:block text-2xl font-bold text-[var(--color-text-primary)]">
+            Inkhouse
+          </span>
         </Link>
 
         <nav className="flex items-center space-x-4">

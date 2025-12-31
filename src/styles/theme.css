@@ -10,6 +10,7 @@
   --color-bg-secondary: #f9fafb;
   --color-bg-tertiary: #f3f4f6;
   --color-bg-card: #ffffff;
+  --color-bg-navbar: #ffffff;
   --color-bg-hover: #f3f4f6;
   --color-bg-overlay: rgba(255, 255, 255, 0.95);
 
@@ -84,6 +85,7 @@
   --color-bg-secondary: #141414;
   --color-bg-tertiary: #1a1a1a;
   --color-bg-card: #141414;
+  --color-bg-navbar: #050505;
   --color-bg-hover: #252525;
   --color-bg-overlay: rgba(18, 18, 18, 0.95);
 

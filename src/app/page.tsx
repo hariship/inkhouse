@@ -53,7 +53,7 @@ export default async function HomePage() {
   const { posts, totalPages, categories } = await getInitialData()
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-secondary)]">
+    <div className="min-h-screen bg-[var(--color-bg-tertiary)]">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 py-8">

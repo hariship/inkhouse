@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -76,8 +77,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <Menu className="w-6 h-6" />
         </button>
-        <Link href="/" className="text-xl font-bold text-[var(--color-text-primary)]">
-          Inkhouse
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="Inkhouse"
+            width={40}
+            height={40}
+            className="h-10 w-10 dark:hidden"
+          />
+          <Image
+            src="/logo-dark.png"
+            alt="Inkhouse"
+            width={40}
+            height={40}
+            className="h-10 w-10 hidden dark:block"
+          />
         </Link>
         <ThemeToggle />
       </header>
@@ -97,7 +111,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center gap-2">
+              <Image
+                src="/logo.png"
+                alt="Inkhouse"
+                width={36}
+                height={36}
+                className="h-9 w-9 dark:hidden"
+              />
+              <Image
+                src="/logo-dark.png"
+                alt="Inkhouse"
+                width={36}
+                height={36}
+                className="h-9 w-9 hidden dark:block"
+              />
               <span className="text-xl font-bold text-[var(--color-text-primary)]">
                 Inkhouse
               </span>
@@ -216,7 +244,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       {/* Main content */}
-      <main className="lg:ml-64 min-h-screen pt-14 lg:pt-0">
+      <main className="lg:ml-64 min-h-screen pt-14 lg:pt-0 bg-[var(--color-bg-tertiary)]">
         <div className="p-4 lg:p-8">{children}</div>
       </main>
     </div>
