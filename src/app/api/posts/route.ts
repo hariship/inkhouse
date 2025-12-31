@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, isSuperAdmin } from '@/lib/auth'
 import { sendNewPostNotification } from '@/lib/email'
 
 // GET - List published posts (public)
@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const author = searchParams.get('author')
     const search = searchParams.get('search')
+    const type = searchParams.get('type') || 'post' // Default to 'post', exclude 'desk'
     const offset = (page - 1) * limit
 
     const supabase = createServerClient()
@@ -46,7 +47,36 @@ export async function GET(request: NextRequest) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
-    const { data: posts, error, count } = await query.range(offset, offset + limit - 1)
+    // Apply type filter with fallback for missing column
+    let posts, error, count
+    if (type === 'desk') {
+      const result = await query.eq('type', 'desk').range(offset, offset + limit - 1)
+      posts = result.data
+      error = result.error
+      count = result.count
+    } else {
+      // Try with type filter first
+      const result = await query.or('type.eq.post,type.is.null').range(offset, offset + limit - 1)
+      posts = result.data
+      error = result.error
+      count = result.count
+
+      // If error (column doesn't exist), retry without type filter
+      if (error) {
+        const fallback = await supabase
+          .from('posts')
+          .select(`
+            *,
+            author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
+          `, { count: 'exact' })
+          .eq('status', 'published')
+          .order('pub_date', { ascending: false })
+          .range(offset, offset + limit - 1)
+        posts = fallback.data
+        error = fallback.error
+        count = fallback.count
+      }
+    }
 
     if (error) {
       console.error('Fetch posts error:', error)
@@ -91,13 +121,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, content, category, image_url, status, featured, allow_comments } = body
+    const { title, description, content, category, image_url, status, featured, allow_comments, type } = body
 
     if (!title || !content) {
       return NextResponse.json(
         { success: false, error: 'Title and content are required' },
         { status: 400 }
       )
+    }
+
+    // Only super_admin can create desk posts
+    const postType = type || 'post'
+    if (postType === 'desk') {
+      const supabaseForUser = createServerClient()
+      if (supabaseForUser) {
+        const { data: fullUser } = await supabaseForUser
+          .from('users')
+          .select('role, email')
+          .eq('id', authUser.userId)
+          .single()
+
+        if (!isSuperAdmin(fullUser)) {
+          return NextResponse.json(
+            { success: false, error: 'Only super admin can create desk posts' },
+            { status: 403 }
+          )
+        }
+      }
     }
 
     // Generate normalized title
@@ -141,6 +191,7 @@ export async function POST(request: NextRequest) {
         featured: featured || false,
         allow_comments: allow_comments !== false,
         pub_date: status === 'published' ? new Date().toISOString() : null,
+        type: postType,
       })
       .select()
       .single()

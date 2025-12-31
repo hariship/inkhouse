@@ -21,8 +21,8 @@ async function getInitialData() {
     return { posts: [], totalPages: 0, categories: [] }
   }
 
-  // Fetch posts
-  const { data: posts, count } = await supabase
+  // Fetch posts (exclude desk posts if type column exists)
+  let postsQuery = supabase
     .from('posts')
     .select(`
       *,
@@ -32,7 +32,25 @@ async function getInitialData() {
     .order('pub_date', { ascending: false })
     .range(0, 9)
 
-  // Fetch unique categories
+  // Try with type filter first, fall back without it if column doesn't exist
+  let { data: posts, count, error } = await postsQuery.or('type.eq.post,type.is.null')
+
+  // If error (likely column doesn't exist), retry without type filter
+  if (error) {
+    const result = await supabase
+      .from('posts')
+      .select(`
+        *,
+        author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
+      `, { count: 'exact' })
+      .eq('status', 'published')
+      .order('pub_date', { ascending: false })
+      .range(0, 9)
+    posts = result.data
+    count = result.count
+  }
+
+  // Fetch unique categories (from regular posts only)
   const { data: categoryData } = await supabase
     .from('posts')
     .select('category')

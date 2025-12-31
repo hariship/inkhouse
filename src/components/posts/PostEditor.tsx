@@ -34,11 +34,12 @@ interface PostEditorProps {
   post?: Post
   onSave: (data: PostFormData) => Promise<void>
   isLoading?: boolean
+  isDeskPost?: boolean
 }
 
 const DRAFT_KEY = 'inkhouse-draft'
 
-export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
+export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorProps) {
   const [quillEditor, setQuillEditor] = useState<any>(null)
   const { theme } = useTheme()
   const [isDrawingOpen, setIsDrawingOpen] = useState(false)
@@ -229,7 +230,7 @@ export function PostEditor({ post, onSave, isLoading }: PostEditorProps) {
       {/* Header - Compact */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
         <h1 className="text-lg sm:text-xl font-bold text-[var(--color-text-primary)]">
-          {post ? 'Edit Post' : 'New Post'}
+          {post ? (isDeskPost ? 'Edit Desk Post' : 'Edit Post') : (isDeskPost ? 'New Desk Post' : 'New Post')}
         </h1>
         <div className="flex items-center space-x-2">
           {lastSaved && !post && (

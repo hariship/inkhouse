@@ -125,13 +125,15 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             <div className="flex items-start space-x-4">
               <Link href={`/author/${post.author.username}`}>
                 {post.author.avatar_url ? (
-                  <Image
-                    src={post.author.avatar_url}
-                    alt={post.author.display_name}
-                    width={64}
-                    height={64}
-                    className="rounded-full"
-                  />
+                  <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                    <Image
+                      src={post.author.avatar_url}
+                      alt={post.author.display_name}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
                     <User className="w-8 h-8 text-[#0D9488]" />

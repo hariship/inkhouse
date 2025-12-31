@@ -9,7 +9,7 @@ export interface User {
   avatar_url?: string
   website_url?: string
   social_links?: Record<string, string>
-  role: 'admin' | 'writer'
+  role: 'super_admin' | 'admin' | 'writer'
   status: 'active' | 'suspended' | 'deleted'
   created_at: string
   updated_at: string
@@ -51,6 +51,7 @@ export interface Post {
   status: 'draft' | 'published' | 'archived'
   featured: boolean
   allow_comments: boolean
+  type: 'post' | 'desk'
 }
 
 export interface PostWithAuthor extends Post {
@@ -216,6 +217,7 @@ export interface PostFormData {
   status: 'draft' | 'published' | 'archived'
   featured?: boolean
   allow_comments?: boolean
+  type?: 'post' | 'desk'
 }
 
 export interface ProfileFormData {
@@ -245,11 +247,11 @@ export interface JWTPayload {
   userId: string
   email: string
   username: string
-  role: 'admin' | 'writer'
+  role: 'super_admin' | 'admin' | 'writer'
 }
 
 // Component Props
 export interface AuthGuardProps {
   children: React.ReactNode
-  requiredRole?: 'admin' | 'writer'
+  requiredRole?: 'super_admin' | 'admin' | 'writer'
 }

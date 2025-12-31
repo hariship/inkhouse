@@ -198,13 +198,15 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
                     className="flex items-center hover:text-[#0D9488]"
                   >
                     {post.author?.avatar_url ? (
-                      <Image
-                        src={post.author.avatar_url}
-                        alt={post.author.display_name}
-                        width={24}
-                        height={24}
-                        className="rounded-full mr-2"
-                      />
+                      <div className="w-6 h-6 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                        <Image
+                          src={post.author.avatar_url}
+                          alt={post.author.display_name}
+                          width={24}
+                          height={24}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     ) : (
                       <User className="w-5 h-5 mr-2" />
                     )}
