@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -12,11 +12,16 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+// Feature tooltip expiry: 5 days from first release
+const API_KEYS_FEATURE_DATE = new Date('2025-12-31').getTime()
+const TOOLTIP_DURATION_MS = 5 * 24 * 60 * 60 * 1000 // 5 days
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showApiKeysTooltip, setShowApiKeysTooltip] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -25,9 +30,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarOpen(false)
   }, [pathname])
 
+  // Show API Keys tooltip for 5 days after feature release
+  useEffect(() => {
+    const now = Date.now()
+    if (now < API_KEYS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
+      setShowApiKeysTooltip(true)
+    }
+  }, [])
+
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
+    { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]
 
@@ -144,6 +158,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <link.icon className="w-5 h-5" />
                   <span>{link.label}</span>
+                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>

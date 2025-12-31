@@ -113,6 +113,68 @@ export interface Session {
   ip_address?: string
 }
 
+// API Key types
+export interface ApiKey {
+  id: string
+  user_id: string
+  name: string
+  key_prefix: string
+  last_used_at?: string
+  expires_at?: string
+  status: 'active' | 'revoked'
+  created_at: string
+  updated_at: string
+}
+
+export interface ApiKeyWithSecret extends ApiKey {
+  secret: string // Only returned once on creation
+}
+
+export interface CreateApiKeyRequest {
+  name: string
+  expires_in_days?: number // 30, 90, 365, or null for never
+}
+
+// Public API types
+export interface PublicApiPost {
+  id: number
+  title: string
+  slug: string
+  description?: string
+  content: string
+  category?: string
+  image_url?: string
+  status: 'draft' | 'published' | 'archived'
+  featured: boolean
+  allow_comments: boolean
+  pub_date?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PublicApiError {
+  code: string
+  message: string
+}
+
+export interface PublicApiRateLimit {
+  limit: number
+  remaining: number
+  reset: string
+}
+
+export interface PublicApiResponse<T = unknown> {
+  success: boolean
+  data?: T
+  error?: PublicApiError
+  meta?: {
+    page?: number
+    limit?: number
+    total?: number
+    rate_limit?: PublicApiRateLimit
+  }
+}
+
 // API Response types
 export interface ApiResponse<T = unknown> {
   success: boolean
