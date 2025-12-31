@@ -166,7 +166,7 @@ export default function ProfilePage() {
 
         {success && (
           <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
-            <p className="text-sm text-green-700 dark:text-green-400">
+            <p className="text-sm text-[var(--color-text-primary)] dark:text-green-400">
               Profile updated successfully!
             </p>
           </div>
@@ -274,7 +274,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Info */}
-        <div className="bg-[var(--color-bg-secondary)] rounded-lg p-4">
+        <div className="bg-[var(--color-bg-tertiary)] border border-[var(--color-border-light)] rounded-lg p-4">
           <p className="text-sm text-[var(--color-text-secondary)]">
             <strong>Username:</strong> @{user?.username}
           </p>
@@ -313,7 +313,7 @@ export default function ProfilePage() {
 
           {passwordSuccess && (
             <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
-              <p className="text-sm text-green-700 dark:text-green-400">
+              <p className="text-sm text-[var(--color-text-primary)] dark:text-green-400">
                 Password changed successfully!
               </p>
             </div>
