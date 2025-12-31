@@ -7,6 +7,7 @@ import { PostWithAuthor, ViewMode, ReadingFilter } from '@/types'
 import { Calendar, User } from 'lucide-react'
 import ReadStatusButton from '@/components/reading/ReadStatusButton'
 import AddToListButton from '@/components/reading/AddToListButton'
+import { useReading } from '@/contexts/ReadingContext'
 
 interface PostGridProps {
   initialPosts: PostWithAuthor[]
@@ -25,6 +26,7 @@ export function PostGrid({
   isAuthenticated = false,
   readingFilter = 'all',
 }: PostGridProps) {
+  const { setFilter } = useReading()
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts)
   const [isLoading, setIsLoading] = useState(false)
   const [page, setPage] = useState(1)
@@ -414,10 +416,20 @@ export function PostGrid({
       ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-[var(--color-text-muted)]">
-            {readingFilter !== 'all'
-              ? `No ${readingFilter} posts found.`
+            {readingFilter === 'read'
+              ? "No read posts yet."
+              : readingFilter === 'unread'
+              ? "You're all caught up!"
               : 'No posts found. Check back later!'}
           </p>
+          {readingFilter !== 'all' && (
+            <button
+              onClick={() => setFilter(readingFilter === 'read' ? 'unread' : 'read')}
+              className="mt-3 text-sm text-[var(--color-link)] hover:underline"
+            >
+              View {readingFilter === 'read' ? 'unread' : 'read'} posts
+            </button>
+          )}
         </div>
       ) : (
         <>
