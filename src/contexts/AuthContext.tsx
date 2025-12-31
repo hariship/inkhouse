@@ -42,11 +42,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Check if we got a 401 and it's not the auth endpoints
       const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
-      const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/logout')
+      const isAuthEndpoint = url.includes('/api/auth/')
 
       if (response.status === 401 && !isAuthEndpoint && user) {
-        // Session expired, trigger auto-logout
-        handleSessionExpiry()
+        // Try to refresh the token first
+        const refreshResponse = await originalFetch('/api/auth/me')
+        if (!refreshResponse.ok) {
+          // Refresh failed, session truly expired
+          handleSessionExpiry()
+        }
+        // If refresh succeeded, the original request already failed
+        // User should retry their action
       }
 
       return response
@@ -63,19 +69,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
+        return true
       } else {
         setUser(null)
+        return false
       }
     } catch {
       setUser(null)
+      return false
     } finally {
       setIsLoading(false)
     }
   }, [])
 
+  // Initial auth check
   useEffect(() => {
     refreshUser()
   }, [refreshUser])
+
+  // Proactive token refresh - refresh every 3 hours to stay ahead of 4-hour expiry
+  useEffect(() => {
+    if (!user) return
+
+    const REFRESH_INTERVAL = 3 * 60 * 60 * 1000 // 3 hours in ms
+
+    const interval = setInterval(() => {
+      refreshUser()
+    }, REFRESH_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [user, refreshUser])
 
   const login = async (email: string, password: string) => {
     try {
