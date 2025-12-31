@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
+import { sendNewPostNotification } from '@/lib/email'
 
 // GET - List published posts (public)
 export async function GET(request: NextRequest) {
@@ -150,6 +151,24 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Failed to create post' },
         { status: 500 }
       )
+    }
+
+    // Send notification if post is published
+    if (status === 'published') {
+      const { data: author } = await supabase
+        .from('users')
+        .select('display_name, username')
+        .eq('id', authUser.userId)
+        .single()
+
+      if (author) {
+        sendNewPostNotification({
+          postTitle: title,
+          postSlug: post.normalized_title,
+          authorName: author.display_name,
+          authorUsername: author.username,
+        }).catch(err => console.error('Failed to send post notification:', err))
+      }
     }
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
+import { sendNewPostNotification } from '@/lib/email'
 
 // GET - Get single post
 export async function GET(
@@ -170,6 +171,24 @@ export async function PATCH(
         { success: false, error: 'Failed to update post' },
         { status: 500 }
       )
+    }
+
+    // Send notification if post is being published for the first time
+    if (body.status === 'published' && existingPost.status !== 'published') {
+      const { data: author } = await supabase
+        .from('users')
+        .select('display_name, username')
+        .eq('id', existingPost.author_id)
+        .single()
+
+      if (author) {
+        sendNewPostNotification({
+          postTitle: post.title,
+          postSlug: post.normalized_title,
+          authorName: author.display_name,
+          authorUsername: author.username,
+        }).catch(err => console.error('Failed to send post notification:', err))
+      }
     }
 
     return NextResponse.json({

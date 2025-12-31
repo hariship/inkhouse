@@ -1,7 +1,12 @@
 import { Resend } from 'resend'
 
 const APP_NAME = 'Inkhouse'
-const SUPER_ADMIN_EMAIL = 'mailtoharipriyas@gmail.com'
+
+const EMAIL_ERRORS = {
+  NOT_CONFIGURED: 'Email service not configured',
+  SUPER_ADMIN_NOT_CONFIGURED: 'Super admin email not configured',
+  SEND_FAILED: 'Failed to send email',
+} as const
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY
@@ -16,6 +21,7 @@ function getEmailConfig() {
   return {
     from: process.env.EMAIL_FROM || 'noreply@haripriya.org',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://inkhouse.haripriya.org',
+    superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
   }
 }
 
@@ -33,7 +39,7 @@ export async function sendWelcomeEmail({
   try {
     const resend = getResendClient()
     if (!resend) {
-      return { success: false, error: 'Email not configured' }
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
     }
 
     const config = getEmailConfig()
@@ -100,7 +106,7 @@ export async function sendRejectionEmail({
   try {
     const resend = getResendClient()
     if (!resend) {
-      return { success: false, error: 'Email not configured' }
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
     }
 
     const config = getEmailConfig()
@@ -150,6 +156,72 @@ export async function sendRejectionEmail({
   }
 }
 
+export async function sendNewPostNotification({
+  postTitle,
+  postSlug,
+  authorName,
+  authorUsername,
+}: {
+  postTitle: string
+  postSlug: string
+  authorName: string
+  authorUsername: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    if (!config.superAdminEmail) {
+      console.warn('SUPER_ADMIN_EMAIL not configured')
+      return { success: false, error: EMAIL_ERRORS.SUPER_ADMIN_NOT_CONFIGURED }
+    }
+
+    const postUrl = `${config.appUrl}/post/${postSlug}`
+
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [config.superAdminEmail],
+      subject: `New post published: ${postTitle}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #0D9488; margin-bottom: 24px;">New Post Published</h1>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            A new post has been published on ${APP_NAME}!
+          </p>
+
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0 0 12px 0; color: #374151;"><strong>Post Details:</strong></p>
+            <p style="margin: 0 0 8px 0; color: #374151;">Title: <strong>${postTitle}</strong></p>
+            <p style="margin: 0; color: #374151;">Author: <strong>${authorName}</strong> (@${authorUsername})</p>
+          </div>
+
+          <a href="${postUrl}" style="display: inline-block; background-color: #0D9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px;">
+            View Post
+          </a>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+            ${APP_NAME} Admin Notifications
+          </p>
+        </div>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send new post notification:', error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Email send error:', error)
+    return { success: false, error }
+  }
+}
+
 export async function sendNewRequestNotification({
   name,
   username,
@@ -164,13 +236,18 @@ export async function sendNewRequestNotification({
   try {
     const resend = getResendClient()
     if (!resend) {
-      return { success: false, error: 'Email not configured' }
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
     }
 
     const config = getEmailConfig()
+    if (!config.superAdminEmail) {
+      console.warn('SUPER_ADMIN_EMAIL not configured')
+      return { success: false, error: EMAIL_ERRORS.SUPER_ADMIN_NOT_CONFIGURED }
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${config.from}>`,
-      to: [SUPER_ADMIN_EMAIL],
+      to: [config.superAdminEmail],
       subject: `New membership request from ${name}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
