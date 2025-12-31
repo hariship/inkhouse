@@ -222,6 +222,43 @@ export async function sendNewPostNotification({
   }
 }
 
+export async function sendNewsletter({
+  to,
+  name,
+  subject,
+  html,
+}: {
+  to: string
+  name: string
+  subject: string
+  html: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [to],
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error(`Failed to send newsletter to ${to}:`, error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Newsletter send error:', error)
+    return { success: false, error }
+  }
+}
+
 export async function sendNewRequestNotification({
   name,
   username,
