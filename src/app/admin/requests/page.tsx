@@ -177,8 +177,8 @@ function RequestsContent() {
               key={request.id}
               className="bg-[var(--color-bg-card)] rounded-lg shadow p-4 sm:p-6"
             >
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
-                <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base sm:text-lg font-medium text-[var(--color-text-primary)]">
                       {request.name}
@@ -199,7 +199,7 @@ function RequestsContent() {
                     <h4 className="text-xs sm:text-sm font-medium text-[var(--color-text-secondary)]">
                       Why they want to join:
                     </h4>
-                    <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                    <p className="text-sm text-[var(--color-text-secondary)] mt-1 break-words">
                       {request.writing_sample}
                     </p>
                   </div>
