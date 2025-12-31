@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { Navbar } from '@/components/layout/Navbar'
-import { PostGrid } from '@/components/posts/PostGrid'
+import HomeContent from '@/components/home/HomeContent'
 import { createServerClient } from '@/lib/supabase'
 
 // Revalidate every 60 seconds
@@ -85,8 +85,8 @@ export default async function HomePage() {
           </p>
         </div>
 
-        {/* Posts Grid with Search */}
-        <PostGrid initialPosts={posts} initialTotalPages={totalPages} categories={categories} />
+        {/* Posts Grid with Reading Controls */}
+        <HomeContent initialPosts={posts} initialTotalPages={totalPages} categories={categories} />
       </main>
 
       {/* Footer */}

@@ -7,11 +7,11 @@ import { sendNewPostNotification } from '@/lib/email'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10'))) // Max 50 per page
     const category = searchParams.get('category')
     const author = searchParams.get('author')
-    const search = searchParams.get('search')
+    const search = searchParams.get('search')?.trim()
     const type = searchParams.get('type') || 'post' // Default to 'post', exclude 'desk'
     const offset = (page - 1) * limit
 
@@ -44,7 +44,23 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      // First, find authors matching the search term
+      const { data: matchingAuthors } = await supabase
+        .from('users')
+        .select('id')
+        .or(`display_name.ilike.%${search}%,username.ilike.%${search}%`)
+
+      const authorIds = matchingAuthors?.map(a => a.id) || []
+
+      // Build search filter: title, description, category, or matching authors
+      let searchFilter = `title.ilike.%${search}%,description.ilike.%${search}%,category.ilike.%${search}%`
+
+      if (authorIds.length > 0) {
+        const authorFilters = authorIds.map(id => `author_id.eq.${id}`).join(',')
+        searchFilter += `,${authorFilters}`
+      }
+
+      query = query.or(searchFilter)
     }
 
     // Apply type filter with fallback for missing column

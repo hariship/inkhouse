@@ -7,6 +7,7 @@ const WINDOW_MS = 60 * 60 * 1000 // 1 hour in milliseconds
 // Generous limits - just basic abuse protection
 const RATE_LIMITS = {
   login: { limit: 100, windowMs: 15 * 60 * 1000 }, // 100 attempts per 15 minutes
+  signup: { limit: 20, windowMs: 60 * 60 * 1000 }, // 20 signups per hour per IP
   membershipRequest: { limit: 50, windowMs: 60 * 60 * 1000 }, // 50 per hour
   comments: { limit: 200, windowMs: 60 * 1000 }, // 200 per minute
   likes: { limit: 500, windowMs: 60 * 1000 }, // 500 per minute

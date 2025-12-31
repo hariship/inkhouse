@@ -69,7 +69,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         {/* Back link */}
         <Link
           href="/"
-          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[#0D9488] mb-8"
+          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-link)] mb-8"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to all posts
@@ -78,7 +78,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         {/* Header */}
         <header className="mb-8">
           {post.category && (
-            <span className="text-sm font-medium text-[#0D9488] uppercase tracking-wide">
+            <span className="text-sm font-medium text-[var(--color-link)] uppercase tracking-wide">
               {post.category}
             </span>
           )}
@@ -136,14 +136,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                   </div>
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                    <User className="w-8 h-8 text-[#0D9488]" />
+                    <User className="w-8 h-8 text-[var(--color-link)]" />
                   </div>
                 )}
               </Link>
               <div className="flex-1">
                 <Link
                   href={`/author/${post.author.username}`}
-                  className="text-lg font-medium text-[var(--color-text-primary)] hover:text-[#0D9488]"
+                  className="text-lg font-medium text-[var(--color-text-primary)] hover:text-[var(--color-link)]"
                 >
                   {post.author.display_name}
                 </Link>
@@ -161,7 +161,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                       href={post.author.website_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-500 hover:text-[#0D9488]"
+                      className="text-gray-500 hover:text-[var(--color-link)]"
                     >
                       <Globe className="w-5 h-5" />
                     </a>
@@ -175,7 +175,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                             href={url as string}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-[#0D9488]"
+                            className="text-gray-500 hover:text-[var(--color-link)]"
                           >
                             {socialIcons[platform] || platform}
                           </a>

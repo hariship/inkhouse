@@ -77,7 +77,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
         {/* Back link */}
         <Link
           href="/"
-          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[#0D9488] mb-8"
+          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-link)] mb-8"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to all posts
@@ -96,7 +96,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
               />
             ) : (
               <div className="w-24 h-24 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
-                <User className="w-12 h-12 text-[#0D9488]" />
+                <User className="w-12 h-12 text-[var(--color-link)]" />
               </div>
             )}
             <div className="flex-1">
@@ -113,7 +113,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                     href={author.website_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center text-gray-500 hover:text-[#0D9488]"
+                    className="inline-flex items-center text-gray-500 hover:text-[var(--color-link)]"
                   >
                     <Globe className="w-5 h-5 mr-1" />
                     Website
@@ -128,7 +128,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                           href={url as string}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-gray-500 hover:text-[#0D9488]"
+                          className="text-gray-500 hover:text-[var(--color-link)]"
                         >
                           {socialIcons[platform] || platform}
                         </a>
@@ -172,12 +172,12 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                   )}
                   <div className="flex-1">
                     {post.category && (
-                      <span className="text-xs font-medium text-[#0D9488] uppercase tracking-wide">
+                      <span className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide">
                         {post.category}
                       </span>
                     )}
                     <Link href={`/post/${post.normalized_title}`}>
-                      <h3 className="text-xl font-semibold text-[var(--color-text-primary)] hover:text-[#0D9488] mt-1">
+                      <h3 className="text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] mt-1">
                         {post.title}
                       </h3>
                     </Link>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ReadingProvider } from "@/contexts/ReadingContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,7 +43,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <ReadingProvider>{children}</ReadingProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

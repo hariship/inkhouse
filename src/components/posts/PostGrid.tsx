@@ -3,16 +3,28 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { PostWithAuthor } from '@/types'
+import { PostWithAuthor, ViewMode, ReadingFilter } from '@/types'
 import { Calendar, User } from 'lucide-react'
+import ReadStatusButton from '@/components/reading/ReadStatusButton'
+import AddToListButton from '@/components/reading/AddToListButton'
 
 interface PostGridProps {
   initialPosts: PostWithAuthor[]
   initialTotalPages: number
   categories: string[]
+  viewMode?: ViewMode
+  isAuthenticated?: boolean
+  readingFilter?: ReadingFilter
 }
 
-export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGridProps) {
+export function PostGrid({
+  initialPosts,
+  initialTotalPages,
+  categories,
+  viewMode = 'grid',
+  isAuthenticated = false,
+  readingFilter = 'all',
+}: PostGridProps) {
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts)
   const [isLoading, setIsLoading] = useState(false)
   const [page, setPage] = useState(1)
@@ -20,6 +32,51 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isFiltering, setIsFiltering] = useState(false)
+
+  // Track reading status for authenticated users
+  const [readStatuses, setReadStatuses] = useState<Record<number, boolean>>({})
+
+  // Fetch reading statuses when posts change and user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || posts.length === 0) return
+
+    const fetchStatuses = async () => {
+      const postIds = posts.map((p) => p.id).join(',')
+
+      try {
+        const readRes = await fetch(`/api/reading/status?postIds=${postIds}`)
+
+        if (readRes.ok) {
+          const readData = await readRes.json()
+          const newReadStatuses: Record<number, boolean> = {}
+          Object.keys(readData.data || {}).forEach((id) => {
+            newReadStatuses[parseInt(id)] = true
+          })
+          setReadStatuses(newReadStatuses)
+        }
+      } catch (error) {
+        console.error('Failed to fetch reading statuses:', error)
+      }
+    }
+
+    fetchStatuses()
+  }, [posts, isAuthenticated])
+
+  // Filter posts based on reading filter
+  const filteredPosts = posts.filter((post) => {
+    if (!isAuthenticated || readingFilter === 'all') return true
+
+    const isRead = readStatuses[post.id] || false
+
+    switch (readingFilter) {
+      case 'unread':
+        return !isRead
+      case 'read':
+        return isRead
+      default:
+        return true
+    }
+  })
 
   // Fetch when filtering, searching, or paginating
   useEffect(() => {
@@ -79,6 +136,171 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
     setTotalPages(initialTotalPages)
   }
 
+  const handleReadStatusChange = (postId: number, isRead: boolean) => {
+    setReadStatuses((prev) => ({ ...prev, [postId]: isRead }))
+  }
+
+
+  // Grid card component
+  const GridCard = ({ post, index }: { post: PostWithAuthor; index: number }) => (
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col">
+      {post.image_url && (
+        <Link href={`/post/${post.normalized_title}`}>
+          <div className="relative h-48 w-full">
+            <Image
+              src={post.image_url}
+              alt={post.title}
+              fill
+              className="object-cover"
+              priority={index === 0}
+            />
+          </div>
+        </Link>
+      )}
+      <div className="p-6 flex flex-col flex-1">
+        <div className="flex-1">
+          {post.category && (
+            <button
+              onClick={() => handleCategoryClick(post.category!)}
+              className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+            >
+              {post.category}
+            </button>
+          )}
+          <Link href={`/post/${post.normalized_title}`}>
+            <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)]">
+              {post.title}
+            </h2>
+          </Link>
+          {post.description && (
+            <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
+              {post.description}
+            </p>
+          )}
+        </div>
+        <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-sm text-[var(--color-text-muted)]">
+          <Link
+            href={`/author/${post.author?.username}`}
+            className="flex items-center hover:text-[var(--color-link)]"
+          >
+            {post.author?.avatar_url ? (
+              <div className="w-6 h-6 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                <Image
+                  src={post.author.avatar_url}
+                  alt={post.author.display_name}
+                  width={24}
+                  height={24}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <User className="w-5 h-5 mr-2" />
+            )}
+            {post.author?.display_name}
+          </Link>
+          <div className="flex items-center gap-2">
+            {isAuthenticated && (
+              <>
+                <ReadStatusButton
+                  postId={post.id}
+                  initialIsRead={readStatuses[post.id] || false}
+                  size="sm"
+                  onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
+                />
+                <AddToListButton postId={post.id} size="sm" />
+              </>
+            )}
+            <span className="flex items-center">
+              <Calendar className="w-4 h-4 mr-1" />
+              {new Date(post.pub_date).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+
+  // List card component
+  const ListCard = ({ post }: { post: PostWithAuthor }) => (
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow">
+      <div className="flex flex-col sm:flex-row">
+        {post.image_url && (
+          <Link href={`/post/${post.normalized_title}`} className="sm:w-48 flex-shrink-0">
+            <div className="relative h-32 sm:h-full w-full">
+              <Image
+                src={post.image_url}
+                alt={post.title}
+                fill
+                className="object-cover"
+              />
+            </div>
+          </Link>
+        )}
+        <div className="p-4 flex flex-col flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {post.category && (
+                <button
+                  onClick={() => handleCategoryClick(post.category!)}
+                  className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+                >
+                  {post.category}
+                </button>
+              )}
+              <Link href={`/post/${post.normalized_title}`}>
+                <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-1">
+                  {post.title}
+                </h2>
+              </Link>
+              {post.description && (
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)] line-clamp-2">
+                  {post.description}
+                </p>
+              )}
+            </div>
+            {isAuthenticated && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <ReadStatusButton
+                  postId={post.id}
+                  initialIsRead={readStatuses[post.id] || false}
+                  size="sm"
+                  onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
+                />
+                <AddToListButton postId={post.id} size="sm" />
+              </div>
+            )}
+          </div>
+          <div className="mt-3 flex items-center text-sm text-[var(--color-text-muted)]">
+            <Link
+              href={`/author/${post.author?.username}`}
+              className="flex items-center hover:text-[var(--color-link)]"
+            >
+              {post.author?.avatar_url ? (
+                <div className="w-5 h-5 rounded-full overflow-hidden mr-1.5 flex-shrink-0">
+                  <Image
+                    src={post.author.avatar_url}
+                    alt={post.author.display_name}
+                    width={20}
+                    height={20}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <User className="w-4 h-4 mr-1.5" />
+              )}
+              {post.author?.display_name}
+            </Link>
+            <span className="mx-2">·</span>
+            <span className="flex items-center">
+              <Calendar className="w-3.5 h-3.5 mr-1" />
+              {new Date(post.pub_date).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+
   return (
     <>
       {/* Category Filter */}
@@ -118,7 +340,7 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search posts..."
-            className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[#0D9488] focus:border-[#0D9488] focus:outline-none"
+            className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)] focus:outline-none"
           />
           <button
             type="submit"
@@ -145,80 +367,24 @@ export function PostGrid({ initialPosts, initialTotalPages, categories }: PostGr
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
         </div>
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-[var(--color-text-muted)]">
-            No posts found. Check back later!
+            {readingFilter !== 'all'
+              ? `No ${readingFilter} posts found.`
+              : 'No posts found. Check back later!'}
           </p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="space-y-4">
+          {filteredPosts.map((post) => (
+            <ListCard key={post.id} post={post} />
+          ))}
         </div>
       ) : (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post, index) => (
-            <article
-              key={post.id}
-              className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col"
-            >
-              {post.image_url && (
-                <Link href={`/post/${post.normalized_title}`}>
-                  <div className="relative h-48 w-full">
-                    <Image
-                      src={post.image_url}
-                      alt={post.title}
-                      fill
-                      className="object-cover"
-                      priority={index === 0}
-                    />
-                  </div>
-                </Link>
-              )}
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex-1">
-                  {post.category && (
-                    <button
-                      onClick={() => handleCategoryClick(post.category!)}
-                      className="text-xs font-medium text-[#0D9488] uppercase tracking-wide hover:underline cursor-pointer"
-                    >
-                      {post.category}
-                    </button>
-                  )}
-                  <Link href={`/post/${post.normalized_title}`}>
-                    <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[#0D9488]">
-                      {post.title}
-                    </h2>
-                  </Link>
-                  {post.description && (
-                    <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
-                      {post.description}
-                    </p>
-                  )}
-                </div>
-                <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-sm text-[var(--color-text-muted)]">
-                  <Link
-                    href={`/author/${post.author?.username}`}
-                    className="flex items-center hover:text-[#0D9488]"
-                  >
-                    {post.author?.avatar_url ? (
-                      <div className="w-6 h-6 rounded-full overflow-hidden mr-2 flex-shrink-0">
-                        <Image
-                          src={post.author.avatar_url}
-                          alt={post.author.display_name}
-                          width={24}
-                          height={24}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <User className="w-5 h-5 mr-2" />
-                    )}
-                    {post.author?.display_name}
-                  </Link>
-                  <span className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    {new Date(post.pub_date).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </article>
+          {filteredPosts.map((post, index) => (
+            <GridCard key={post.id} post={post} index={index} />
           ))}
         </div>
       )}

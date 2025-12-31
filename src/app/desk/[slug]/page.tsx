@@ -63,7 +63,7 @@ export default async function DeskPostPage({ params }: { params: Promise<{ slug:
         {/* Back link */}
         <Link
           href="/desk"
-          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[#0D9488] mb-8"
+          className="inline-flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-link)] mb-8"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to From the Desk
