@@ -168,15 +168,17 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
           {comments.map((comment) => (
             <div key={comment.id} className="flex space-x-4">
               {comment.author?.avatar_url ? (
-                <Image
-                  src={comment.author.avatar_url}
-                  alt={comment.author.display_name}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
+                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                  <Image
+                    src={comment.author.avatar_url}
+                    alt={comment.author.display_name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               ) : (
-                <div className="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center flex-shrink-0">
                   <User className="w-5 h-5 text-[#0D9488]" />
                 </div>
               )}
