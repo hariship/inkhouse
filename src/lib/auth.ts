@@ -6,8 +6,8 @@ import { JWTPayload } from '@/types'
 const JWT_SECRET = process.env.JWT_SECRET!
 const REFRESH_SECRET = process.env.REFRESH_SECRET!
 
-const ACCESS_TOKEN_EXPIRY = '15m'
-const REFRESH_TOKEN_EXPIRY = '7d'
+const ACCESS_TOKEN_EXPIRY = '4h'
+const REFRESH_TOKEN_EXPIRY = '30d'
 
 export function generateAccessToken(payload: JWTPayload): string {
   // Strip JWT-specific properties to avoid conflict with expiresIn
@@ -61,7 +61,7 @@ export async function setAuthCookies(accessToken: string, refreshToken: string) 
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 15 * 60, // 15 minutes
+    maxAge: 4 * 60 * 60, // 4 hours
     path: '/',
   })
 
@@ -69,7 +69,7 @@ export async function setAuthCookies(accessToken: string, refreshToken: string) 
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    maxAge: 30 * 24 * 60 * 60, // 30 days
     path: '/',
   })
 }
