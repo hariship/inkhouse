@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -24,7 +24,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showApiKeysTooltip, setShowApiKeysTooltip] = useState(false)
 
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isSuperAdmin = user?.role === 'super_admin'
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -51,6 +52,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/admin/requests', label: 'Requests', icon: Users },
     { href: '/admin/members', label: 'Members', icon: Users },
     { href: '/admin/posts', label: 'All Posts', icon: FileText },
+  ]
+
+  const superAdminLinks = [
+    { href: '/dashboard/desk', label: 'From the Desk', icon: NotebookPen },
   ]
 
   const handleLogoutClick = () => {
@@ -194,6 +199,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               ))}
             </div>
+
+            {isSuperAdmin && (
+              <div className="pt-4">
+                <p className="px-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Super Admin
+                </p>
+                {superAdminLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-md mt-1 ${
+                      pathname === link.href || pathname.startsWith(link.href + '/')
+                        ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-link)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    }`}
+                  >
+                    <link.icon className="w-5 h-5" />
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
 
             {isAdmin && (
               <div className="pt-4">

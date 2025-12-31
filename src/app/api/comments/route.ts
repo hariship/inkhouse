@@ -111,13 +111,24 @@ export async function POST(request: NextRequest) {
     // Check if user is authenticated
     const authUser = await getAuthUser()
 
+    // For authenticated users, get their display name
+    let finalAuthorName = author_name
+    if (authUser) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('display_name')
+        .eq('id', authUser.userId)
+        .single()
+      finalAuthorName = user?.display_name || author_name
+    }
+
     const { data: comment, error } = await supabase
       .from('comments')
       .insert({
         post_id,
         content,
-        author_name: authUser ? undefined : author_name,
-        author_email: authUser ? undefined : author_email,
+        author_name: finalAuthorName,
+        author_email: authUser ? null : author_email,
         author_id: authUser?.userId || null,
         parent_id: parent_id || null,
         status: 'approved', // Auto-approve for now

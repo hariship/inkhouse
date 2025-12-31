@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, isSuperAdmin, isAdmin } from '@/lib/auth'
 import { sendNewPostNotification } from '@/lib/email'
 
 // GET - Get single post
@@ -47,9 +47,9 @@ export async function GET(
     // Check if post is published or user is the author/admin
     const authUser = await getAuthUser()
     const isAuthor = authUser?.userId === post.author_id
-    const isAdmin = authUser?.role === 'admin'
+    const hasAdminAccess = isAdmin(authUser)
 
-    if (post.status !== 'published' && !isAuthor && !isAdmin) {
+    if (post.status !== 'published' && !isAuthor && !hasAdminAccess) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
@@ -114,8 +114,21 @@ export async function PATCH(
       )
     }
 
-    // Check permission
-    if (existingPost.author_id !== authUser.userId && authUser.role !== 'admin') {
+    // Check permission - desk posts require super_admin
+    if (existingPost.type === 'desk') {
+      const { data: fullUser } = await supabase
+        .from('users')
+        .select('role, email')
+        .eq('id', authUser.userId)
+        .single()
+
+      if (!isSuperAdmin(fullUser)) {
+        return NextResponse.json(
+          { success: false, error: 'Only super admin can edit desk posts' },
+          { status: 403 }
+        )
+      }
+    } else if (existingPost.author_id !== authUser.userId && !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden' },
         { status: 403 }
@@ -231,7 +244,7 @@ export async function DELETE(
     // Get existing post
     const { data: existingPost, error: fetchError } = await supabase
       .from('posts')
-      .select('author_id')
+      .select('author_id, type')
       .eq('id', id)
       .single()
 
@@ -242,8 +255,21 @@ export async function DELETE(
       )
     }
 
-    // Check permission
-    if (existingPost.author_id !== authUser.userId && authUser.role !== 'admin') {
+    // Check permission - desk posts require super_admin
+    if (existingPost.type === 'desk') {
+      const { data: fullUser } = await supabase
+        .from('users')
+        .select('role, email')
+        .eq('id', authUser.userId)
+        .single()
+
+      if (!isSuperAdmin(fullUser)) {
+        return NextResponse.json(
+          { success: false, error: 'Only super admin can delete desk posts' },
+          { status: 403 }
+        )
+      }
+    } else if (existingPost.author_id !== authUser.userId && !isAdmin(authUser)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden' },
         { status: 403 }

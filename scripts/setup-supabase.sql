@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     website_url TEXT,
     social_links JSONB DEFAULT '{}',
-    role TEXT NOT NULL DEFAULT 'writer' CHECK (role IN ('admin', 'writer')),
+    role TEXT NOT NULL DEFAULT 'writer' CHECK (role IN ('super_admin', 'admin', 'writer')),
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'deleted')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS posts (
     author_id UUID NOT NULL REFERENCES users(id),
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
     featured BOOLEAN DEFAULT FALSE,
-    allow_comments BOOLEAN DEFAULT TRUE
+    allow_comments BOOLEAN DEFAULT TRUE,
+    type TEXT NOT NULL DEFAULT 'post' CHECK (type IN ('post', 'desk'))
 );
 
 -- 4. COMMENTS TABLE
@@ -167,6 +168,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_normalized_title ON posts(normalized_title);
 CREATE INDEX IF NOT EXISTS idx_posts_pub_date ON posts(pub_date DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category);
+CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type);
 
 CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes(user_id);

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
-import { PenLine, LogIn, User, X } from 'lucide-react'
+import { PenLine, LogIn, User, X, NotebookPen } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 
 export function Navbar() {
@@ -54,6 +54,17 @@ export function Navbar() {
         </Link>
 
         <nav className="flex items-center space-x-4">
+          <Link
+            href="/desk"
+            className="hidden sm:flex items-center px-3 py-1.5 rounded-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors relative group"
+          >
+            <NotebookPen className="w-4 h-4 mr-1.5 text-[var(--color-link)]" />
+            <span className="font-medium">Desk</span>
+            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-[var(--color-bg-card)] border border-[var(--color-border-light)] text-[var(--color-text-primary)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md">
+              Behind the ink
+            </span>
+          </Link>
+
           <ThemeToggle />
 
           {!isLoading && (
