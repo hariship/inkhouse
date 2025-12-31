@@ -220,13 +220,13 @@ export function PostGrid({
     </article>
   )
 
-  // List card component
+  // List card component (desktop)
   const ListCard = ({ post }: { post: PostWithAuthor }) => (
     <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow">
-      <div className="flex flex-col sm:flex-row">
+      <div className="flex flex-row">
         {post.image_url && (
-          <Link href={`/post/${post.normalized_title}`} className="sm:w-48 flex-shrink-0">
-            <div className="relative h-32 sm:h-full w-full">
+          <Link href={`/post/${post.normalized_title}`} className="w-48 flex-shrink-0">
+            <div className="relative h-full w-full">
               <Image
                 src={post.image_url}
                 alt={post.title}
@@ -301,14 +301,58 @@ export function PostGrid({
     </article>
   )
 
+  // Compact mobile list card (no images)
+  const MobileListCard = ({ post }: { post: PostWithAuthor }) => (
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-3 hover:shadow-[var(--shadow-medium)] transition-shadow">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          {post.category && (
+            <button
+              onClick={() => handleCategoryClick(post.category!)}
+              className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+            >
+              {post.category}
+            </button>
+          )}
+          <Link href={`/post/${post.normalized_title}`}>
+            <h2 className="mt-0.5 text-base font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-2">
+              {post.title}
+            </h2>
+          </Link>
+          {post.description && (
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)] line-clamp-1">
+              {post.description}
+            </p>
+          )}
+        </div>
+        {isAuthenticated && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <ReadStatusButton
+              postId={post.id}
+              initialIsRead={readStatuses[post.id] || false}
+              size="sm"
+              onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
+            />
+            <AddToListButton postId={post.id} size="sm" />
+          </div>
+        )}
+      </div>
+      <div className="mt-2 flex items-center text-xs text-[var(--color-text-muted)]">
+        <span>{post.author?.display_name}</span>
+        <span className="mx-1.5">·</span>
+        <span>{new Date(post.pub_date).toLocaleDateString()}</span>
+      </div>
+    </article>
+  )
+
   return (
     <>
       {/* Category Filter */}
       {categories.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-2 mb-6">
+        <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => handleCategoryClick(null)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+            className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
               selectedCategory === null
                 ? 'bg-[var(--color-button-primary)] text-white'
                 : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
@@ -320,7 +364,7 @@ export function PostGrid({
             <button
               key={category}
               onClick={() => handleCategoryClick(category)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
+              className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 selectedCategory === category
                   ? 'bg-[var(--color-button-primary)] text-white'
                   : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
@@ -333,18 +377,18 @@ export function PostGrid({
       )}
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="mb-8">
+      <form onSubmit={handleSearch} className="mb-6 sm:mb-8">
         <div className="flex max-w-xl mx-auto">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search posts..."
-            className="flex-1 px-4 py-2 border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)] focus:outline-none"
+            className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm border border-[var(--color-border-medium)] rounded-l-md text-[var(--color-text-primary)] bg-[var(--color-bg-primary)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)] focus:outline-none"
           />
           <button
             type="submit"
-            className="btn-primary px-6 py-2 rounded-r-md"
+            className="btn-primary px-4 sm:px-6 py-1.5 sm:py-2 text-sm rounded-r-md"
           >
             Search
           </button>
@@ -375,18 +419,42 @@ export function PostGrid({
               : 'No posts found. Check back later!'}
           </p>
         </div>
-      ) : viewMode === 'list' ? (
-        <div className="space-y-4">
-          {filteredPosts.map((post) => (
-            <ListCard key={post.id} post={post} />
-          ))}
-        </div>
       ) : (
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPosts.map((post, index) => (
-            <GridCard key={post.id} post={post} index={index} />
-          ))}
-        </div>
+        <>
+          {/* Mobile: list=compact (no images), grid=with images */}
+          <div className="sm:hidden">
+            {viewMode === 'list' ? (
+              <div className="space-y-2">
+                {filteredPosts.map((post) => (
+                  <MobileListCard key={post.id} post={post} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPosts.map((post, index) => (
+                  <GridCard key={post.id} post={post} index={index} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: Grid or List based on viewMode */}
+          <div className="hidden sm:block">
+            {viewMode === 'list' ? (
+              <div className="space-y-4">
+                {filteredPosts.map((post) => (
+                  <ListCard key={post.id} post={post} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {filteredPosts.map((post, index) => (
+                  <GridCard key={post.id} post={post} index={index} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Pagination */}

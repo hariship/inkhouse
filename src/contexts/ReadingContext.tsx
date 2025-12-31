@@ -15,9 +15,18 @@ const ReadingContext = createContext<ReadingContextType | undefined>(undefined)
 
 export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
+  // Default to 'list' (compact) on mobile, 'grid' on desktop
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [filter, setFilterState] = useState<ReadingFilter>('unread')
   const [loaded, setLoaded] = useState(false)
+
+  // Set initial view mode based on screen size (mobile defaults to compact list)
+  useEffect(() => {
+    const isMobile = window.innerWidth < 640 // sm breakpoint
+    if (isMobile) {
+      setViewModeState('list')
+    }
+  }, [])
 
   // Load preferences when authenticated
   useEffect(() => {

@@ -75,12 +75,12 @@ export default async function HomePage() {
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Hero */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
+        {/* Hero - compact on mobile */}
+        <div className="text-center mb-6 sm:mb-12">
+          <h1 className="text-2xl sm:text-4xl font-bold text-[var(--color-text-primary)] mb-2 sm:mb-4">
             Welcome to Inkhouse
           </h1>
-          <p className="text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
+          <p className="text-sm sm:text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
             A home for writers to share their stories, ideas, and perspectives.
           </p>
         </div>

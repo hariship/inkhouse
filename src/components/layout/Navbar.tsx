@@ -153,7 +153,22 @@ export function Navbar() {
 
                     {/* Profile dropdown menu */}
                     {showProfileMenu && (
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-lg shadow-lg z-50">
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--color-bg-card)] border border-[var(--color-border-light)] rounded-lg shadow-lg z-50">
+                        {/* User info - visible on mobile */}
+                        <div className="px-4 py-3 border-b border-[var(--color-border-light)]">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)]">{user?.display_name}</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">@{user?.username}</p>
+                        </div>
+
+                        {/* Desk link - visible on mobile only */}
+                        <Link
+                          href="/desk"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="sm:hidden flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                        >
+                          <NotebookPen className="w-4 h-4 text-[var(--color-link)]" />
+                          From the Desk
+                        </Link>
                         {canWritePosts(user?.role) && (
                           <Link
                             href="/dashboard"
@@ -272,6 +287,43 @@ export function Navbar() {
         </nav>
       </div>
     </header>
+
+      {/* Mobile filter bar - only on homepage for logged in users */}
+      {isAuthenticated && showReadingControls && (
+        <div className="sm:hidden bg-[var(--color-bg-navbar)] border-b border-[var(--color-border-light)] px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setFilter(filter === 'unread' ? 'all' : 'unread')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  filter === 'unread'
+                    ? 'bg-[var(--color-link)] text-white'
+                    : 'text-[var(--color-text-muted)]'
+                }`}
+              >
+                Unread
+              </button>
+              <button
+                onClick={() => setFilter(filter === 'read' ? 'all' : 'read')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  filter === 'read'
+                    ? 'bg-[var(--color-link)] text-white'
+                    : 'text-[var(--color-text-muted)]'
+                }`}
+              >
+                Read
+              </button>
+            </div>
+            <button
+              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+              className="p-1.5 text-[var(--color-text-muted)]"
+              title={viewMode === 'list' ? 'Show with images' : 'Compact view'}
+            >
+              {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <ListIcon className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
