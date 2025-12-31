@@ -12,11 +12,16 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+// Feature tooltip expiry: 5 days from first release
+const API_KEYS_FEATURE_DATE = new Date('2025-12-31').getTime()
+const TOOLTIP_DURATION_MS = 5 * 24 * 60 * 60 * 1000 // 5 days
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showApiKeysTooltip, setShowApiKeysTooltip] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -24,6 +29,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     setSidebarOpen(false)
   }, [pathname])
+
+  // Show API Keys tooltip for 5 days after feature release
+  useEffect(() => {
+    const now = Date.now()
+    if (now < API_KEYS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
+      setShowApiKeysTooltip(true)
+    }
+  }, [])
 
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
@@ -145,6 +158,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <link.icon className="w-5 h-5" />
                   <span>{link.label}</span>
+                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
