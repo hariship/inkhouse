@@ -9,7 +9,7 @@ export interface User {
   avatar_url?: string
   website_url?: string
   social_links?: Record<string, string>
-  role: 'super_admin' | 'admin' | 'writer'
+  role: 'super_admin' | 'admin' | 'writer' | 'reader'
   status: 'active' | 'suspended' | 'deleted'
   created_at: string
   updated_at: string
@@ -247,11 +247,64 @@ export interface JWTPayload {
   userId: string
   email: string
   username: string
-  role: 'super_admin' | 'admin' | 'writer'
+  role: 'super_admin' | 'admin' | 'writer' | 'reader'
 }
 
 // Component Props
 export interface AuthGuardProps {
   children: React.ReactNode
-  requiredRole?: 'super_admin' | 'admin' | 'writer'
+  requiredRole?: 'super_admin' | 'admin' | 'writer' | 'reader'
 }
+
+// Reading feature types
+export interface PostRead {
+  id: string
+  user_id: string
+  post_id: number
+  read_at: string
+}
+
+export interface Bookmark {
+  id: string
+  user_id: string
+  post_id: number
+  created_at: string
+}
+
+export interface ReadingList {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  created_at: string
+  updated_at: string
+  items?: ReadingListItem[]
+  item_count?: number
+}
+
+export interface ReadingListItem {
+  id: string
+  list_id: string
+  post_id: number
+  added_at: string
+  post?: Post
+}
+
+export interface UserPreferences {
+  user_id: string
+  view_mode: 'grid' | 'list'
+  default_sort: 'date' | 'category'
+  updated_at?: string
+}
+
+export interface ReaderSignupFormData {
+  email: string
+  password: string
+  display_name: string
+  username: string
+}
+
+// Reading filter types
+export type ReadingFilter = 'all' | 'unread' | 'read' | 'saved'
+export type SortOption = 'date' | 'category'
+export type ViewMode = 'grid' | 'list'

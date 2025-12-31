@@ -25,9 +25,10 @@
   --color-border-medium: #d1d5db;
   --color-border-dark: #9ca3af;
 
-  /* Interactive Colors - Cyan accent */
-  --color-link: #0D9488;
-  --color-link-hover: #0f766e;
+  /* Interactive Colors - Muted teal accent */
+  --color-link: #0f766e;
+  --color-link-hover: #115e59;
+  --color-link-light: #ccfbf1;
   --color-button-primary: #6b7280;
   --color-button-primary-hover: #4b5563;
   --color-button-secondary: #9ca3af;
@@ -100,9 +101,10 @@
   --color-border-medium: #333333;
   --color-border-dark: #444444;
 
-  /* Interactive Colors - Cyan accent */
-  --color-link: #2dd4bf;
-  --color-link-hover: #5eead4;
+  /* Interactive Colors - Muted teal accent */
+  --color-link: #0d9488;
+  --color-link-hover: #0f766e;
+  --color-link-light: #134e4a;
   --color-button-primary: #6b7280;
   --color-button-primary-hover: #9ca3af;
   --color-button-secondary: #525252;

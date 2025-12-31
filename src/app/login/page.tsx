@@ -51,6 +51,13 @@ export default function LoginPage() {
           <p className="mt-2 text-center text-sm text-[var(--color-text-secondary)]">
             Or{' '}
             <Link
+              href="/signup"
+              className="font-medium text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
+            >
+              sign up as a reader
+            </Link>
+            {' '}or{' '}
+            <Link
               href="/join"
               className="font-medium text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
             >

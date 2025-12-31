@@ -104,3 +104,27 @@ export function isAdmin(user: { role: string } | null): boolean {
   if (!user) return false
   return user.role === 'super_admin' || user.role === 'admin'
 }
+
+/**
+ * Check if user is a writer
+ */
+export function isWriter(user: { role: string } | null): boolean {
+  if (!user) return false
+  return user.role === 'writer'
+}
+
+/**
+ * Check if user is a reader
+ */
+export function isReader(user: { role: string } | null): boolean {
+  if (!user) return false
+  return user.role === 'reader'
+}
+
+/**
+ * Check if user can write posts (writers and above)
+ */
+export function canWritePosts(user: { role: string } | null): boolean {
+  if (!user) return false
+  return ['super_admin', 'admin', 'writer'].includes(user.role)
+}

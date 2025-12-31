@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User } from '@/types'
 import { User as UserIcon, Shield, Ban, LayoutGrid, List, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import Image from 'next/image'
+import { useAuth } from '@/contexts/AuthContext'
 
 type ViewMode = 'grid' | 'list'
 
@@ -15,6 +16,7 @@ interface PaginationMeta {
 }
 
 export default function MembersPage() {
+  const { user: currentUser } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -22,6 +24,16 @@ export default function MembersPage() {
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 10, total: 0, totalPages: 0 })
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Check if current user can modify target user
+  const canModifyUser = (targetUser: User) => {
+    // Super admins can modify anyone
+    if (currentUser?.role === 'super_admin') return true
+    // Admins cannot modify super_admins
+    if (targetUser.role === 'super_admin') return false
+    // Admins can modify everyone else
+    return true
+  }
 
   // Different limits per view mode
   const limit = viewMode === 'grid' ? 6 : 10
@@ -115,42 +127,49 @@ export default function MembersPage() {
     )
   }
 
-  const renderActionButtons = (user: User) => (
-    <div className="flex space-x-1">
-      <div className="relative group">
-        <button
-          onClick={() =>
-            handleUpdateRole(user.id, user.role === 'admin' ? 'writer' : 'admin')
-          }
-          disabled={processingId === user.id}
-          className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-info)] transition-colors"
-        >
-          <Shield className="w-4 h-4" />
-        </button>
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          {user.role === 'admin' ? 'Remove admin' : 'Make admin'}
-        </span>
+  const renderActionButtons = (user: User) => {
+    // If current user cannot modify this user, show empty space
+    if (!canModifyUser(user)) {
+      return <div className="flex space-x-1 w-16" /> // Same width to maintain alignment
+    }
+
+    return (
+      <div className="flex space-x-1">
+        <div className="relative group">
+          <button
+            onClick={() =>
+              handleUpdateRole(user.id, user.role === 'admin' ? 'writer' : 'admin')
+            }
+            disabled={processingId === user.id}
+            className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-info)] transition-colors"
+          >
+            <Shield className="w-4 h-4" />
+          </button>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            {user.role === 'admin' ? 'Remove admin' : 'Make admin'}
+          </span>
+        </div>
+        <div className="relative group">
+          <button
+            onClick={() =>
+              handleUpdateStatus(user.id, user.status === 'active' ? 'suspended' : 'active')
+            }
+            disabled={processingId === user.id}
+            className={`p-2 transition-colors ${
+              user.status === 'active'
+                ? 'text-[var(--color-text-muted)] hover:text-[var(--color-error)]'
+                : 'text-[var(--color-error)] hover:text-[var(--color-success)]'
+            }`}
+          >
+            <Ban className="w-4 h-4" />
+          </button>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            {user.status === 'active' ? 'Suspend' : 'Activate'}
+          </span>
+        </div>
       </div>
-      <div className="relative group">
-        <button
-          onClick={() =>
-            handleUpdateStatus(user.id, user.status === 'active' ? 'suspended' : 'active')
-          }
-          disabled={processingId === user.id}
-          className={`p-2 transition-colors ${
-            user.status === 'active'
-              ? 'text-[var(--color-text-muted)] hover:text-[var(--color-error)]'
-              : 'text-[var(--color-error)] hover:text-[var(--color-success)]'
-          }`}
-        >
-          <Ban className="w-4 h-4" />
-        </button>
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          {user.status === 'active' ? 'Suspend' : 'Activate'}
-        </span>
-      </div>
-    </div>
-  )
+    )
+  }
 
   const renderBadges = (user: User) => (
     <div className="flex flex-wrap items-center gap-2">

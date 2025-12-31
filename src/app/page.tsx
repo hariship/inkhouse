@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { Navbar } from '@/components/layout/Navbar'
-import { PostGrid } from '@/components/posts/PostGrid'
+import HomeContent from '@/components/home/HomeContent'
 import { createServerClient } from '@/lib/supabase'
 
 // Revalidate every 60 seconds
@@ -75,18 +75,18 @@ export default async function HomePage() {
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Hero */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
+        {/* Hero - compact on mobile */}
+        <div className="text-center mb-6 sm:mb-12">
+          <h1 className="text-2xl sm:text-4xl font-bold text-[var(--color-text-primary)] mb-2 sm:mb-4">
             Welcome to Inkhouse
           </h1>
-          <p className="text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
+          <p className="text-sm sm:text-xl text-[var(--color-text-secondary)] max-w-2xl mx-auto">
             A home for writers to share their stories, ideas, and perspectives.
           </p>
         </div>
 
-        {/* Posts Grid with Search */}
-        <PostGrid initialPosts={posts} initialTotalPages={totalPages} categories={categories} />
+        {/* Posts Grid with Reading Controls */}
+        <HomeContent initialPosts={posts} initialTotalPages={totalPages} categories={categories} />
       </main>
 
       {/* Footer */}
