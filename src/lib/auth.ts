@@ -90,21 +90,11 @@ export function generateTempPassword(): string {
 }
 
 /**
- * Check if a user is super admin
- * Verifies both role in DB and email matches SUPER_ADMIN_EMAIL env variable
+ * Check if a user is super admin based on database role
  */
-export function isSuperAdmin(user: { role: string; email: string } | null): boolean {
+export function isSuperAdmin(user: { role: string } | null): boolean {
   if (!user) return false
-
-  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
-
-  // Must have super_admin role AND email must match env variable (if set)
-  if (user.role !== 'super_admin') return false
-
-  // If SUPER_ADMIN_EMAIL is set, verify email matches
-  if (superAdminEmail && user.email !== superAdminEmail) return false
-
-  return true
+  return user.role === 'super_admin'
 }
 
 /**

@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
-  refreshUser: () => Promise<void>
+  refreshUser: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -155,7 +155,7 @@ export function useAuth() {
       isAuthenticated: false,
       login: async () => ({ success: false, error: 'Not initialized' }),
       logout: async () => {},
-      refreshUser: async () => {},
+      refreshUser: async () => false,
     }
   }
   return context
