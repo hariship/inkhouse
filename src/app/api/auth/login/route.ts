@@ -6,10 +6,23 @@ import {
   generateRefreshToken,
   setAuthCookies,
 } from '@/lib/auth'
+import { checkIpRateLimit, getClientIp, getRateLimitHeaders } from '@/lib/rate-limit'
+import { logLoginSuccess, logLoginFailed } from '@/lib/audit'
 import { JWTPayload } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientIp = getClientIp(request)
+    const rateLimit = checkIpRateLimit(clientIp, 'login')
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: getRateLimitHeaders(rateLimit) }
+      )
+    }
+
     const { email, password } = await request.json()
 
     if (!email || !password) {
@@ -36,6 +49,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !user) {
+      await logLoginFailed(email, 'user_not_found', request)
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
         { status: 401 }
@@ -53,6 +67,7 @@ export async function POST(request: NextRequest) {
     // Verify password
     const isValid = await verifyPassword(password, user.password_hash)
     if (!isValid) {
+      await logLoginFailed(email, 'invalid_password', request, user.id)
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
         { status: 401 }
@@ -91,6 +106,9 @@ export async function POST(request: NextRequest) {
 
     // Set cookies
     await setAuthCookies(accessToken, refreshToken)
+
+    // Log successful login
+    await logLoginSuccess(user.id, user.email, request)
 
     // Return user data (without password)
     const { password_hash: _, ...safeUser } = user

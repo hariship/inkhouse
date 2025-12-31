@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
+import { logUserRoleChange, logUserStatusChange } from '@/lib/audit'
 
 export async function PATCH(
   request: NextRequest,
@@ -28,6 +29,13 @@ export async function PATCH(
       )
     }
 
+    // Get current user state for audit log
+    const { data: currentUser } = await supabase
+      .from('users')
+      .select('role, status')
+      .eq('id', id)
+      .single()
+
     const updateData: Record<string, unknown> = {}
     if (role) updateData.role = role
     if (status) updateData.status = status
@@ -45,6 +53,14 @@ export async function PATCH(
         { success: false, error: 'Failed to update user' },
         { status: 500 }
       )
+    }
+
+    // Audit log
+    if (role && currentUser?.role !== role) {
+      await logUserRoleChange(authUser.userId, id, currentUser?.role || '', role, request)
+    }
+    if (status && currentUser?.status !== status) {
+      await logUserStatusChange(authUser.userId, id, currentUser?.status || '', status, request)
     }
 
     return NextResponse.json({

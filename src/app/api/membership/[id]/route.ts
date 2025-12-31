@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser, hashPassword, generateTempPassword } from '@/lib/auth'
 import { sendWelcomeEmail, sendRejectionEmail } from '@/lib/email'
+import { logMembershipApprove, logMembershipReject } from '@/lib/audit'
 
 export async function GET(
   request: NextRequest,
@@ -152,6 +153,9 @@ export async function PATCH(
         console.error('Failed to send welcome email:', emailResult.error)
       }
 
+      // Audit log
+      await logMembershipApprove(authUser.userId, id, membershipRequest.email, membershipRequest.username, request)
+
       return NextResponse.json({
         success: true,
         message: 'User approved and welcome email sent',
@@ -179,6 +183,9 @@ export async function PATCH(
       if (!emailResult.success) {
         console.error('Failed to send rejection email:', emailResult.error)
       }
+
+      // Audit log
+      await logMembershipReject(authUser.userId, id, membershipRequest.email, rejection_reason, request)
 
       return NextResponse.json({
         success: true,
