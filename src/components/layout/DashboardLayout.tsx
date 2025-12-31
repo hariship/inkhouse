@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -28,6 +28,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
+    { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]
 

@@ -115,6 +115,29 @@ CREATE TABLE IF NOT EXISTS email_logs (
     error TEXT
 );
 
+-- 9. API KEYS TABLE
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    key_prefix TEXT NOT NULL,
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 10. API RATE LIMITS TABLE
+CREATE TABLE IF NOT EXISTS api_rate_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key_id UUID NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+    window_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    request_count INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(api_key_id, window_start)
+);
+
 -- =====================================================
 -- INDEXES
 -- =====================================================
@@ -146,6 +169,12 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email);
 CREATE INDEX IF NOT EXISTS idx_subscribers_status ON subscribers(status);
 
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_keys_status ON api_keys(status);
+
+CREATE INDEX IF NOT EXISTS idx_api_rate_limits_key_window ON api_rate_limits(api_key_id, window_start);
+
 -- =====================================================
 -- ROW LEVEL SECURITY
 -- =====================================================
@@ -157,6 +186,8 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscribers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Service role has full access to all tables
 CREATE POLICY "Service role full access users" ON users FOR ALL USING (true);
@@ -167,6 +198,8 @@ CREATE POLICY "Service role full access comments" ON comments FOR ALL USING (tru
 CREATE POLICY "Service role full access subscribers" ON subscribers FOR ALL USING (true);
 CREATE POLICY "Service role full access sessions" ON sessions FOR ALL USING (true);
 CREATE POLICY "Service role full access email_logs" ON email_logs FOR ALL USING (true);
+CREATE POLICY "Service role full access api_keys" ON api_keys FOR ALL USING (true);
+CREATE POLICY "Service role full access api_rate_limits" ON api_rate_limits FOR ALL USING (true);
 
 -- =====================================================
 -- FUNCTIONS
@@ -204,6 +237,11 @@ CREATE TRIGGER update_comments_updated_at
 
 CREATE TRIGGER update_subscribers_updated_at
     BEFORE UPDATE ON subscribers
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_api_keys_updated_at
+    BEFORE UPDATE ON api_keys
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
