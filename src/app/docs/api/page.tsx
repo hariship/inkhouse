@@ -43,6 +43,9 @@ const ENDPOINTS: EndpointConfig[] = [
       { name: 'description', type: 'string', description: 'Short description/excerpt' },
       { name: 'status', type: 'string', description: 'draft or published (default: draft)' },
       { name: 'category', type: 'string', description: 'Post category' },
+      { name: 'image_url', type: 'string', description: 'Featured image URL' },
+      { name: 'featured', type: 'boolean', description: 'Mark as featured post (default: false)' },
+      { name: 'allow_comments', type: 'boolean', description: 'Allow comments (default: true)' },
     ],
     defaultBody: {
       title: 'My New Post',
@@ -69,6 +72,9 @@ const ENDPOINTS: EndpointConfig[] = [
       { name: 'description', type: 'string', description: 'Short description' },
       { name: 'status', type: 'string', description: 'draft, published, or archived' },
       { name: 'category', type: 'string', description: 'Post category' },
+      { name: 'image_url', type: 'string', description: 'Featured image URL' },
+      { name: 'featured', type: 'boolean', description: 'Mark as featured post' },
+      { name: 'allow_comments', type: 'boolean', description: 'Allow comments' },
     ],
     defaultBody: {
       title: 'Updated Title',
@@ -553,14 +559,14 @@ export default function ApiDocsPage() {
                       <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
                         Query Parameters
                       </h3>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {activeEndpoint.params.map((param) => (
-                          <div key={param.name} className="flex gap-4">
-                            <div className="w-32 shrink-0">
-                              <code className="text-sm text-[var(--color-link)]">{param.name}</code>
-                              <span className="text-xs text-[var(--color-text-muted)] ml-2">{param.type}</span>
+                          <div key={param.name} className="flex flex-col sm:flex-row sm:gap-4">
+                            <div className="w-48 shrink-0 flex items-baseline gap-1.5">
+                              <code className="text-base text-[var(--color-link)]">{param.name}</code>
+                              <span className="text-sm text-[var(--color-text-muted)]">{param.type}</span>
                             </div>
-                            <p className="text-sm text-[var(--color-text-secondary)]">{param.description}</p>
+                            <p className="text-base text-[var(--color-text-secondary)]">{param.description}</p>
                           </div>
                         ))}
                       </div>
@@ -572,15 +578,15 @@ export default function ApiDocsPage() {
                       <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
                         Request Body
                       </h3>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {activeEndpoint.body.map((field) => (
-                          <div key={field.name} className="flex gap-4">
-                            <div className="w-32 shrink-0">
-                              <code className="text-sm text-[var(--color-link)]">{field.name}</code>
-                              {field.required && <span className="text-red-500 ml-1">*</span>}
-                              <span className="text-xs text-[var(--color-text-muted)] ml-2">{field.type}</span>
+                          <div key={field.name} className="flex flex-col sm:flex-row sm:gap-4">
+                            <div className="w-48 shrink-0 flex items-baseline gap-1.5">
+                              <code className="text-base text-[var(--color-link)]">{field.name}</code>
+                              {field.required && <span className="text-red-500">*</span>}
+                              <span className="text-sm text-[var(--color-text-muted)]">{field.type}</span>
                             </div>
-                            <p className="text-sm text-[var(--color-text-secondary)]">{field.description}</p>
+                            <p className="text-base text-[var(--color-text-secondary)]">{field.description}</p>
                           </div>
                         ))}
                       </div>
