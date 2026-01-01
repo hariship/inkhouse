@@ -16,10 +16,12 @@ export default function HomeContent({
   initialTotalPages,
   categories,
 }: HomeContentProps) {
-  const { isAuthenticated, isLoading } = useAuth()
-  const { viewMode, filter } = useReading()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { viewMode, filter, preferencesLoaded } = useReading()
 
-  // Don't show controls while loading auth state
+  // Show loading while auth or preferences are loading (for authenticated users)
+  const isLoading = authLoading || (isAuthenticated && !preferencesLoaded)
+
   if (isLoading) {
     return (
       <PostGrid
