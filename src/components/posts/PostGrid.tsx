@@ -35,8 +35,8 @@ export function PostGrid({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isFiltering, setIsFiltering] = useState(false)
 
-  // Track reading status for authenticated users
-  const [readStatuses, setReadStatuses] = useState<Record<number, boolean>>({})
+  // Track reading status for authenticated users (stores read_at timestamp or null)
+  const [readStatuses, setReadStatuses] = useState<Record<number, string | null>>({})
   const [statusesLoaded, setStatusesLoaded] = useState(false)
 
   // Fetch reading statuses when posts change and user is authenticated
@@ -55,11 +55,8 @@ export function PostGrid({
 
         if (readRes.ok) {
           const readData = await readRes.json()
-          const newReadStatuses: Record<number, boolean> = {}
-          Object.keys(readData.data || {}).forEach((id) => {
-            newReadStatuses[parseInt(id)] = true
-          })
-          setReadStatuses(newReadStatuses)
+          // Store the read_at timestamp directly
+          setReadStatuses(readData.data || {})
         }
       } catch (error) {
         console.error('Failed to fetch reading statuses:', error)
@@ -78,7 +75,7 @@ export function PostGrid({
   const filteredPosts = posts.filter((post) => {
     if (!isAuthenticated || readingFilter === 'all') return true
 
-    const isRead = readStatuses[post.id] || false
+    const isRead = !!readStatuses[post.id]
 
     switch (readingFilter) {
       case 'unread':
@@ -127,7 +124,9 @@ export function PostGrid({
     setPage(1)
   }
 
-  const handleCategoryClick = (category: string | null) => {
+  const handleCategoryClick = (e: React.MouseEvent, category: string | null) => {
+    e.preventDefault()
+    e.stopPropagation()
     setSelectedCategory(category)
     setIsFiltering(true)
     setPage(1)
@@ -149,15 +148,45 @@ export function PostGrid({
   }
 
   const handleReadStatusChange = (postId: number, isRead: boolean) => {
-    setReadStatuses((prev) => ({ ...prev, [postId]: isRead }))
+    setReadStatuses((prev) => ({
+      ...prev,
+      [postId]: isRead ? new Date().toISOString() : null
+    }))
+  }
+
+  // Helper to format read date
+  const formatReadDate = (dateStr: string | null | undefined) => {
+    if (!dateStr || typeof dateStr !== 'string') return ''
+    const date = new Date(dateStr)
+    // Check for invalid date or dates before year 2000 (likely invalid)
+    if (isNaN(date.getTime()) || date.getFullYear() < 2000) return ''
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
 
   // Grid card component
-  const GridCard = ({ post, index }: { post: PostWithAuthor; index: number }) => (
-    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col">
-      {post.image_url && (
-        <Link href={`/post/${post.normalized_title}`}>
+  const GridCard = ({ post, index }: { post: PostWithAuthor; index: number }) => {
+    const readAt = isAuthenticated ? readStatuses[post.id] : null
+    const isRead = !!readAt
+    return (
+    <Link href={`/post/${post.normalized_title}`} className="block">
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col relative group/card cursor-pointer">
+      {/* Read indicator tooltip */}
+      {isRead && readAt && formatReadDate(readAt) && (
+        <div className="absolute top-2 left-2 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity pointer-events-none">
+          <span className="px-2 py-1 text-xs text-white bg-cyan-700 dark:bg-emerald-600 rounded shadow-lg">
+            Read on {formatReadDate(readAt)}
+          </span>
+        </div>
+      )}
+      <div className={isRead ? 'opacity-60' : ''}>
+        {post.image_url && (
           <div className="relative h-48 w-full">
             <Image
               src={post.image_url}
@@ -167,34 +196,31 @@ export function PostGrid({
               priority={index === 0}
             />
           </div>
-        </Link>
-      )}
-      <div className="p-6 flex flex-col flex-1">
-        <div className="flex-1">
-          {post.category && (
-            <button
-              onClick={() => handleCategoryClick(post.category!)}
-              className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
-            >
-              {post.category}
-            </button>
-          )}
-          <Link href={`/post/${post.normalized_title}`}>
+        )}
+        <div className="p-6 flex flex-col flex-1">
+          <div className="flex-1">
+            {post.category && (
+              <button
+                onClick={(e) => handleCategoryClick(e, post.category!)}
+                className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
+              >
+                {post.category}
+              </button>
+            )}
             <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)]">
               {post.title}
             </h2>
-          </Link>
-          {post.description && (
-            <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
-              {post.description}
-            </p>
-          )}
+            {post.description && (
+              <p className="mt-2 text-[var(--color-text-secondary)] line-clamp-2">
+                {post.description}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-xs">
-          <Link
-            href={`/author/${post.author?.username}`}
-            className="flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-link)] min-w-0"
-          >
+      </div>
+      <div className="px-6 pb-6 pt-0 border-t border-[var(--color-border-light)] mt-auto">
+        <div className="flex items-center justify-between text-xs pt-4">
+          <span className={`flex items-center min-w-0 ${isRead ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-secondary)]'}`}>
             {post.author?.avatar_url ? (
               <div className="w-5 h-5 rounded-full overflow-hidden mr-1.5 flex-shrink-0">
                 <Image
@@ -209,13 +235,13 @@ export function PostGrid({
               <User className="w-4 h-4 mr-1.5 flex-shrink-0" />
             )}
             <span className="truncate">{post.author?.display_name}</span>
-          </Link>
+          </span>
           <div className="flex items-center gap-1.5 flex-shrink-0 text-[var(--color-text-muted)]">
             {isAuthenticated && (
               <>
                 <ReadStatusButton
                   postId={post.id}
-                  initialIsRead={readStatuses[post.id] || false}
+                  initialIsRead={isRead}
                   size="sm"
                   onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
                 />
@@ -230,14 +256,27 @@ export function PostGrid({
         </div>
       </div>
     </article>
-  )
+    </Link>
+  )}
 
   // List card component (desktop)
-  const ListCard = ({ post }: { post: PostWithAuthor }) => (
-    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow">
+  const ListCard = ({ post }: { post: PostWithAuthor }) => {
+    const readAt = isAuthenticated ? readStatuses[post.id] : null
+    const isRead = !!readAt
+    return (
+    <Link href={`/post/${post.normalized_title}`} className="block">
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow relative group/card cursor-pointer">
+      {/* Read indicator tooltip */}
+      {isRead && readAt && formatReadDate(readAt) && (
+        <div className="absolute top-2 left-2 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity pointer-events-none">
+          <span className="px-2 py-1 text-xs text-white bg-cyan-700 dark:bg-emerald-600 rounded shadow-lg">
+            Read on {formatReadDate(readAt)}
+          </span>
+        </div>
+      )}
       <div className="flex flex-row">
         {post.image_url && (
-          <Link href={`/post/${post.normalized_title}`} className="w-48 flex-shrink-0">
+          <div className={`w-48 flex-shrink-0 ${isRead ? 'opacity-60' : ''}`}>
             <div className="relative h-full w-full">
               <Image
                 src={post.image_url}
@@ -246,24 +285,22 @@ export function PostGrid({
                 className="object-cover"
               />
             </div>
-          </Link>
+          </div>
         )}
         <div className="p-4 flex flex-col flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 ${isRead ? 'opacity-60' : ''}`}>
               {post.category && (
                 <button
-                  onClick={() => handleCategoryClick(post.category!)}
+                  onClick={(e) => handleCategoryClick(e, post.category!)}
                   className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
                 >
                   {post.category}
                 </button>
               )}
-              <Link href={`/post/${post.normalized_title}`}>
-                <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-1">
-                  {post.title}
-                </h2>
-              </Link>
+              <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-1">
+                {post.title}
+              </h2>
               {post.description && (
                 <p className="mt-1 text-sm text-[var(--color-text-secondary)] line-clamp-2">
                   {post.description}
@@ -274,7 +311,7 @@ export function PostGrid({
               <div className="flex items-center gap-1 flex-shrink-0">
                 <ReadStatusButton
                   postId={post.id}
-                  initialIsRead={readStatuses[post.id] || false}
+                  initialIsRead={isRead}
                   size="sm"
                   onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
                 />
@@ -282,11 +319,8 @@ export function PostGrid({
               </div>
             )}
           </div>
-          <div className="mt-3 flex items-center text-sm text-[var(--color-text-muted)]">
-            <Link
-              href={`/author/${post.author?.username}`}
-              className="flex items-center hover:text-[var(--color-link)]"
-            >
+          <div className={`mt-3 flex items-center text-sm text-[var(--color-text-muted)] ${isRead ? 'opacity-60' : ''}`}>
+            <span className="flex items-center">
               {post.author?.avatar_url ? (
                 <div className="w-5 h-5 rounded-full overflow-hidden mr-1.5 flex-shrink-0">
                   <Image
@@ -301,7 +335,7 @@ export function PostGrid({
                 <User className="w-4 h-4 mr-1.5" />
               )}
               {post.author?.display_name}
-            </Link>
+            </span>
             <span className="mx-2">·</span>
             <span className="flex items-center">
               <Calendar className="w-3.5 h-3.5 mr-1" />
@@ -311,26 +345,37 @@ export function PostGrid({
         </div>
       </div>
     </article>
-  )
+    </Link>
+  )}
 
   // Compact mobile list card (no images)
-  const MobileListCard = ({ post }: { post: PostWithAuthor }) => (
-    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-3 hover:shadow-[var(--shadow-medium)] transition-shadow">
+  const MobileListCard = ({ post }: { post: PostWithAuthor }) => {
+    const readAt = isAuthenticated ? readStatuses[post.id] : null
+    const isRead = !!readAt
+    return (
+    <Link href={`/post/${post.normalized_title}`} className="block">
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-3 hover:shadow-[var(--shadow-medium)] transition-shadow relative group/card cursor-pointer">
+      {/* Read indicator tooltip */}
+      {isRead && readAt && formatReadDate(readAt) && (
+        <div className="absolute top-1 left-1 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity pointer-events-none">
+          <span className="px-2 py-1 text-xs text-white bg-cyan-700 dark:bg-emerald-600 rounded shadow-lg">
+            Read on {formatReadDate(readAt)}
+          </span>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
+        <div className={`flex-1 min-w-0 ${isRead ? 'opacity-60' : ''}`}>
           {post.category && (
             <button
-              onClick={() => handleCategoryClick(post.category!)}
+              onClick={(e) => handleCategoryClick(e, post.category!)}
               className="text-xs font-medium text-[var(--color-link)] uppercase tracking-wide hover:underline cursor-pointer"
             >
               {post.category}
             </button>
           )}
-          <Link href={`/post/${post.normalized_title}`}>
-            <h2 className="mt-0.5 text-base font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-2">
-              {post.title}
-            </h2>
-          </Link>
+          <h2 className="mt-0.5 text-base font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-link)] line-clamp-2">
+            {post.title}
+          </h2>
           {post.description && (
             <p className="mt-1 text-sm text-[var(--color-text-secondary)] line-clamp-1">
               {post.description}
@@ -341,7 +386,7 @@ export function PostGrid({
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <ReadStatusButton
               postId={post.id}
-              initialIsRead={readStatuses[post.id] || false}
+              initialIsRead={isRead}
               size="sm"
               onStatusChange={(isRead) => handleReadStatusChange(post.id, isRead)}
             />
@@ -349,21 +394,22 @@ export function PostGrid({
           </div>
         )}
       </div>
-      <div className="mt-2 flex items-center text-xs overflow-hidden">
+      <div className={`mt-2 flex items-center text-xs overflow-hidden ${isRead ? 'opacity-60' : ''}`}>
         <span className="truncate text-[var(--color-text-secondary)]">{post.author?.display_name}</span>
         <span className="mx-1.5 flex-shrink-0 text-[var(--color-text-muted)]">·</span>
         <span className="flex-shrink-0 whitespace-nowrap text-[var(--color-text-muted)]">{new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
       </div>
     </article>
-  )
+    </Link>
+  )}
 
   return (
     <>
       {/* Category Filter */}
       {categories.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+        <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-3 sm:mb-4">
           <button
-            onClick={() => handleCategoryClick(null)}
+            onClick={(e) => handleCategoryClick(e, null)}
             className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
               selectedCategory === null
                 ? 'bg-[var(--color-button-primary)] text-white'
@@ -375,7 +421,7 @@ export function PostGrid({
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => handleCategoryClick(category)}
+              onClick={(e) => handleCategoryClick(e, category)}
               className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 selectedCategory === category
                   ? 'bg-[var(--color-button-primary)] text-white'
@@ -389,7 +435,7 @@ export function PostGrid({
       )}
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="mb-6 sm:mb-8">
+      <form onSubmit={handleSearch} className="mb-4 sm:mb-6">
         <div className="flex max-w-xl mx-auto">
           <input
             type="text"

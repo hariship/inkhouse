@@ -186,6 +186,16 @@ export function Navbar() {
                           <Box className="w-4 h-4" />
                           My Boxes
                         </Link>
+                        {user?.role === 'reader' && (
+                          <Link
+                            href="/become-writer"
+                            onClick={() => setShowProfileMenu(false)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-link)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+                          >
+                            <PenLine className="w-4 h-4" />
+                            Become a Writer
+                          </Link>
+                        )}
                         <div className="border-t border-[var(--color-border-light)]" />
                         <button
                           onClick={() => {

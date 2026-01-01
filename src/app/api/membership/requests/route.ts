@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'pending'
+    const countOnly = searchParams.get('count_only') === 'true'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
@@ -33,6 +34,14 @@ export async function GET(request: NextRequest) {
       .from('membership_requests')
       .select('*', { count: 'exact', head: true })
       .eq('status', status)
+
+    // If only count is needed, return early
+    if (countOnly) {
+      return NextResponse.json({
+        success: true,
+        count: count || 0,
+      })
+    }
 
     // Get requests
     const { data: requests, error } = await supabase
