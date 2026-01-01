@@ -19,19 +19,14 @@ export default function HomeContent({
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const { viewMode, filter, preferencesLoaded } = useReading()
 
-  // Show loading while auth or preferences are loading (for authenticated users)
-  const isLoading = authLoading || (isAuthenticated && !preferencesLoaded)
-
-  if (isLoading) {
+  // Show "INKING..." while auth or preferences are loading
+  if (authLoading || (isAuthenticated && !preferencesLoaded)) {
     return (
-      <PostGrid
-        initialPosts={initialPosts}
-        initialTotalPages={initialTotalPages}
-        categories={categories}
-        viewMode="grid"
-        isAuthenticated={false}
-        readingFilter="all"
-      />
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="text-2xl font-bold text-[var(--color-text-primary)] animate-pulse">
+          INKING...
+        </div>
+      </div>
     )
   }
 
