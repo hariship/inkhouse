@@ -1,15 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { PostWithAuthor } from '@/types'
+import { useState, useEffect } from 'react'
+import { PostWithAuthor, ViewMode, ReadingFilter } from '@/types'
 import { PostGrid } from '@/components/posts/PostGrid'
-import { useAuth } from '@/contexts/AuthContext'
-import { useReading } from '@/contexts/ReadingContext'
 
 interface HomeContentProps {
   initialPosts: PostWithAuthor[]
   initialTotalPages: number
   categories: string[]
+}
+
+interface HomeData {
+  posts: PostWithAuthor[]
+  preferences: {
+    view_mode: ViewMode
+    default_filter: ReadingFilter
+  } | null
+  readStatuses: Record<number, string>
+  isAuthenticated: boolean
 }
 
 export default function HomeContent({
@@ -18,81 +26,45 @@ export default function HomeContent({
   categories,
 }: HomeContentProps) {
   const [mounted, setMounted] = useState(false)
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const { viewMode, filter, preferencesLoaded } = useReading()
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<HomeData | null>(null)
 
-  // Track read statuses for initial posts
-  const [initialReadStatuses, setInitialReadStatuses] = useState<Record<number, string | null>>({})
-  const [statusesLoaded, setStatusesLoaded] = useState(false)
-
-  // Track if we've already fetched to prevent duplicate fetches
-  const hasFetched = useRef(false)
-
-  // Track when component has mounted
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Fetch read statuses for initial posts after auth and preferences are ready
+  // Single API call to get everything
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) {
-      return
-    }
+    if (!mounted) return
 
-    // Non-authenticated users don't need read statuses
-    if (!isAuthenticated) {
-      setStatusesLoaded(true)
-      return
-    }
-
-    // Wait for preferences to load
-    if (!preferencesLoaded) {
-      return
-    }
-
-    // Already fetched
-    if (hasFetched.current) {
-      return
-    }
-
-    // No posts to fetch statuses for
-    if (initialPosts.length === 0) {
-      setStatusesLoaded(true)
-      return
-    }
-
-    hasFetched.current = true
-
-    const fetchStatuses = async () => {
+    const fetchHomeData = async () => {
       try {
-        const postIds = initialPosts.map((p) => p.id).join(',')
-        const response = await fetch(`/api/reading/status?postIds=${postIds}`)
+        const response = await fetch('/api/posts/home?limit=10')
         if (response.ok) {
-          const data = await response.json()
-          setInitialReadStatuses(data.data || {})
+          const result = await response.json()
+          if (result.success) {
+            setData(result.data)
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch read statuses:', error)
+        console.error('Failed to fetch home data:', error)
+        // Fallback to initial data for non-authenticated users
+        setData({
+          posts: initialPosts,
+          preferences: null,
+          readStatuses: {},
+          isAuthenticated: false,
+        })
       } finally {
-        setStatusesLoaded(true)
+        setLoading(false)
       }
     }
 
-    fetchStatuses()
-  }, [authLoading, isAuthenticated, preferencesLoaded, initialPosts])
+    fetchHomeData()
+  }, [mounted, initialPosts])
 
-  // UNIFIED LOADING CHECK
-  // Wait until:
-  // 1. Component is mounted (prevents flash during hydration)
-  // 2. Auth check is complete
-  // 3. If authenticated: preferences AND read statuses are loaded
-  const isFullyLoaded =
-    mounted && !authLoading && (!isAuthenticated || (preferencesLoaded && statusesLoaded))
-
-  // Show full-page loading until ALL data is ready
-  // This prevents any partial UI from showing
-  if (!isFullyLoaded) {
+  // Show spinner until everything is ready
+  if (!mounted || loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
@@ -100,15 +72,22 @@ export default function HomeContent({
     )
   }
 
+  // Use fetched data or fallback to initial
+  const posts = data?.posts || initialPosts
+  const viewMode = data?.preferences?.view_mode || 'grid'
+  const filter = data?.preferences?.default_filter || 'all'
+  const readStatuses = data?.readStatuses || {}
+  const isAuthenticated = data?.isAuthenticated || false
+
   return (
     <PostGrid
-      initialPosts={initialPosts}
+      initialPosts={posts}
       initialTotalPages={initialTotalPages}
       categories={categories}
       viewMode={viewMode}
       isAuthenticated={isAuthenticated}
       readingFilter={filter}
-      initialReadStatuses={initialReadStatuses}
+      initialReadStatuses={readStatuses}
     />
   )
 }
