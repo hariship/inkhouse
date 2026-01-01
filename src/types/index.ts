@@ -14,6 +14,8 @@ export interface User {
   created_at: string
   updated_at: string
   last_login_at?: string
+  google_id?: string
+  auth_provider?: 'local' | 'google' | 'both'
 }
 
 export type PublicUser = Omit<User, 'password_hash' | 'email'>
@@ -33,6 +35,8 @@ export interface MembershipRequest {
   rejection_reason?: string
   created_at: string
   updated_at: string
+  google_id?: string
+  google_avatar_url?: string
 }
 
 // Post types

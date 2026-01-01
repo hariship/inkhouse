@@ -101,6 +101,32 @@ export default function JoinPage() {
           </p>
         </div>
 
+        <div className="bg-[var(--color-bg-card)] shadow-[var(--shadow-light)] rounded-lg p-6 space-y-6">
+          <div>
+            <a
+              href="/api/auth/google?source=join"
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-[var(--color-border-medium)] rounded-md bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors text-sm font-medium"
+            >
+              <span className="text-lg font-semibold">G</span>
+              Continue with Google
+            </a>
+            <p className="mt-2 text-xs text-center text-[var(--color-text-muted)]">
+              Quick sign up - we&apos;ll use your Google profile info
+            </p>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--color-border-medium)]" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-[var(--color-bg-card)] px-4 text-[var(--color-text-muted)]">
+                or fill out the form
+              </span>
+            </div>
+          </div>
+        </div>
+
         <form
           onSubmit={handleSubmit}
           className="bg-[var(--color-bg-card)] shadow-[var(--shadow-light)] rounded-lg p-6 space-y-6"
