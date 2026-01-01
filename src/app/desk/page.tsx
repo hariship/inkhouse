@@ -75,7 +75,7 @@ export default function DeskPage() {
     <div className="min-h-screen bg-[var(--color-bg-tertiary)]">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border-light)] flex items-center justify-center">
@@ -169,7 +169,7 @@ export default function DeskPage() {
             </div>
 
             {/* Main content - Selected post */}
-            <div className="max-w-3xl mx-auto">
+            <div>
               {selectedPost ? (
                 <article className="bg-[var(--color-bg-card)] rounded-lg border border-[var(--color-border-light)] p-4 sm:p-8">
                   {/* Toggle button */}

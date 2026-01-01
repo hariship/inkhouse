@@ -188,7 +188,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                     )}
                     <div className="flex items-center mt-3 text-sm text-[var(--color-text-muted)]">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(post.pub_date).toLocaleDateString()}
+                      {new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </div>

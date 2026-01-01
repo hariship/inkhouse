@@ -37,14 +37,19 @@ export function PostGrid({
 
   // Track reading status for authenticated users
   const [readStatuses, setReadStatuses] = useState<Record<number, boolean>>({})
+  const [statusesLoaded, setStatusesLoaded] = useState(false)
 
   // Fetch reading statuses when posts change and user is authenticated
   useEffect(() => {
-    if (!isAuthenticated || posts.length === 0) return
+    if (!isAuthenticated || posts.length === 0) {
+      setStatusesLoaded(true)
+      return
+    }
+
+    setStatusesLoaded(false)
+    const postIds = posts.map((p) => p.id).join(',')
 
     const fetchStatuses = async () => {
-      const postIds = posts.map((p) => p.id).join(',')
-
       try {
         const readRes = await fetch(`/api/reading/status?postIds=${postIds}`)
 
@@ -58,11 +63,16 @@ export function PostGrid({
         }
       } catch (error) {
         console.error('Failed to fetch reading statuses:', error)
+      } finally {
+        setStatusesLoaded(true)
       }
     }
 
     fetchStatuses()
   }, [posts, isAuthenticated])
+
+  // Show loading when filter is active but statuses haven't loaded yet
+  const statusesLoading = isAuthenticated && readingFilter !== 'all' && !statusesLoaded
 
   // Filter posts based on reading filter
   const filteredPosts = posts.filter((post) => {
@@ -180,27 +190,27 @@ export function PostGrid({
             </p>
           )}
         </div>
-        <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-sm text-[var(--color-text-muted)]">
+        <div className="mt-4 pt-4 border-t border-[var(--color-border-light)] flex items-center justify-between text-xs">
           <Link
             href={`/author/${post.author?.username}`}
-            className="flex items-center hover:text-[var(--color-link)]"
+            className="flex items-center text-[var(--color-text-secondary)] hover:text-[var(--color-link)] min-w-0"
           >
             {post.author?.avatar_url ? (
-              <div className="w-6 h-6 rounded-full overflow-hidden mr-2 flex-shrink-0">
+              <div className="w-5 h-5 rounded-full overflow-hidden mr-1.5 flex-shrink-0">
                 <Image
                   src={post.author.avatar_url}
                   alt={post.author.display_name}
-                  width={24}
-                  height={24}
+                  width={20}
+                  height={20}
                   className="w-full h-full object-cover"
                 />
               </div>
             ) : (
-              <User className="w-5 h-5 mr-2" />
+              <User className="w-4 h-4 mr-1.5 flex-shrink-0" />
             )}
-            {post.author?.display_name}
+            <span className="truncate">{post.author?.display_name}</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0 text-[var(--color-text-muted)]">
             {isAuthenticated && (
               <>
                 <ReadStatusButton
@@ -212,9 +222,9 @@ export function PostGrid({
                 <AddToListButton postId={post.id} size="sm" />
               </>
             )}
-            <span className="flex items-center">
-              <Calendar className="w-4 h-4 mr-1" />
-              {new Date(post.pub_date).toLocaleDateString()}
+            <span className="flex items-center whitespace-nowrap">
+              <Calendar className="w-3.5 h-3.5 mr-1" />
+              {new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
           </div>
         </div>
@@ -295,7 +305,7 @@ export function PostGrid({
             <span className="mx-2">·</span>
             <span className="flex items-center">
               <Calendar className="w-3.5 h-3.5 mr-1" />
-              {new Date(post.pub_date).toLocaleDateString()}
+              {new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
           </div>
         </div>
@@ -339,10 +349,10 @@ export function PostGrid({
           </div>
         )}
       </div>
-      <div className="mt-2 flex items-center text-xs text-[var(--color-text-muted)]">
-        <span>{post.author?.display_name}</span>
-        <span className="mx-1.5">·</span>
-        <span>{new Date(post.pub_date).toLocaleDateString()}</span>
+      <div className="mt-2 flex items-center text-xs overflow-hidden">
+        <span className="truncate text-[var(--color-text-secondary)]">{post.author?.display_name}</span>
+        <span className="mx-1.5 flex-shrink-0 text-[var(--color-text-muted)]">·</span>
+        <span className="flex-shrink-0 whitespace-nowrap text-[var(--color-text-muted)]">{new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
       </div>
     </article>
   )
@@ -409,7 +419,7 @@ export function PostGrid({
       </form>
 
       {/* Posts */}
-      {isLoading ? (
+      {isLoading || statusesLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
         </div>

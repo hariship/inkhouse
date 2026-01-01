@@ -90,6 +90,14 @@ export function Navbar() {
             </span>
           </Link>
 
+          {/* Mobile Desk link - visible for everyone on mobile */}
+          <Link
+            href="/desk"
+            className="sm:hidden p-1.5 rounded-md text-[var(--color-link)] hover:text-[var(--color-link-hover)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          >
+            <NotebookPen className="w-5 h-5" />
+          </Link>
+
           <ThemeToggle />
 
           {isLoading ? (
@@ -160,15 +168,6 @@ export function Navbar() {
                           <p className="text-xs text-[var(--color-text-muted)]">@{user?.username}</p>
                         </div>
 
-                        {/* Desk link - visible on mobile only */}
-                        <Link
-                          href="/desk"
-                          onClick={() => setShowProfileMenu(false)}
-                          className="sm:hidden flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
-                        >
-                          <NotebookPen className="w-4 h-4 text-[var(--color-link)]" />
-                          From the Desk
-                        </Link>
                         {canWritePosts(user?.role) && (
                           <Link
                             href="/dashboard"
@@ -277,10 +276,10 @@ export function Navbar() {
                   </Link>
                   <Link
                     href="/login"
-                    className="btn-primary inline-flex items-center px-4 py-2 rounded-md"
+                    className="btn-primary inline-flex items-center px-3 sm:px-4 py-2 rounded-md"
                   >
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign In
+                    <LogIn className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign In</span>
                   </Link>
                 </>
               )}

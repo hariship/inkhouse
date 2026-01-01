@@ -20,7 +20,7 @@ function getResendClient() {
 function getEmailConfig() {
   return {
     from: process.env.EMAIL_FROM || 'noreply@haripriya.org',
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://inkhouse.haripriya.org',
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
   }
 }
@@ -212,6 +212,162 @@ export async function sendNewPostNotification({
 
     if (error) {
       console.error('Failed to send new post notification:', error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Email send error:', error)
+    return { success: false, error }
+  }
+}
+
+export async function sendNewsletter({
+  to,
+  name,
+  subject,
+  html,
+}: {
+  to: string
+  name: string
+  subject: string
+  html: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [to],
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error(`Failed to send newsletter to ${to}:`, error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Newsletter send error:', error)
+    return { success: false, error }
+  }
+}
+
+export async function sendPasswordResetEmail({
+  to,
+  name,
+  resetToken,
+}: {
+  to: string
+  name: string
+  resetToken: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    const resetUrl = `${config.appUrl}/reset-password?token=${resetToken}`
+
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [to],
+      subject: `Reset your ${APP_NAME} password`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #0D9488; margin-bottom: 24px;">Reset Your Password</h1>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            Hi ${name},
+          </p>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            We received a request to reset your password. Click the button below to create a new password.
+          </p>
+
+          <a href="${resetUrl}" style="display: inline-block; background-color: #0D9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 24px 0;">
+            Reset Password
+          </a>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+          </p>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+            ${APP_NAME}
+          </p>
+        </div>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send password reset email:', error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Password reset email error:', error)
+    return { success: false, error }
+  }
+}
+
+export async function sendNewReaderNotification({
+  name,
+  username,
+  email,
+}: {
+  name: string
+  username: string
+  email: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    if (!config.superAdminEmail) {
+      console.warn('SUPER_ADMIN_EMAIL not configured')
+      return { success: false, error: EMAIL_ERRORS.SUPER_ADMIN_NOT_CONFIGURED }
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [config.superAdminEmail],
+      subject: `New reader joined: ${name}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #0D9488; margin-bottom: 24px;">New Reader Joined</h1>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            A new reader has signed up on ${APP_NAME}!
+          </p>
+
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0 0 8px 0; color: #374151;">Name: <strong>${name}</strong></p>
+            <p style="margin: 0 0 8px 0; color: #374151;">Username: <strong>@${username}</strong></p>
+            <p style="margin: 0; color: #374151;">Email: <strong>${email}</strong></p>
+          </div>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+            ${APP_NAME} Admin Notifications
+          </p>
+        </div>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send new reader notification:', error)
       return { success: false, error }
     }
 
