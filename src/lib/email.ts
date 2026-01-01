@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { createServerClient } from './supabase'
 
 const APP_NAME = 'Inkhouse'
 
@@ -23,6 +24,19 @@ function getEmailConfig() {
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     superAdminEmail: process.env.SUPER_ADMIN_EMAIL,
   }
+}
+
+async function getSuperAdminEmails(): Promise<string[]> {
+  const supabase = createServerClient()
+  if (!supabase) return []
+
+  const { data: superAdmins } = await supabase
+    .from('users')
+    .select('email')
+    .eq('role', 'super_admin')
+    .eq('status', 'active')
+
+  return superAdmins?.map(u => u.email).filter(Boolean) || []
 }
 
 export async function sendWelcomeEmail({
@@ -416,14 +430,20 @@ export async function sendNewRequestNotification({
     }
 
     const config = getEmailConfig()
-    if (!config.superAdminEmail) {
-      console.warn('SUPER_ADMIN_EMAIL not configured')
+
+    // Get super admin emails from database, fallback to env variable
+    let adminEmails = await getSuperAdminEmails()
+    if (adminEmails.length === 0 && config.superAdminEmail) {
+      adminEmails = [config.superAdminEmail]
+    }
+    if (adminEmails.length === 0) {
+      console.warn('No super admin emails found')
       return { success: false, error: EMAIL_ERRORS.SUPER_ADMIN_NOT_CONFIGURED }
     }
 
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${config.from}>`,
-      to: [config.superAdminEmail],
+      to: adminEmails,
       subject: `New membership request from ${name}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

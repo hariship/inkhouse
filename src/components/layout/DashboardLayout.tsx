@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -15,6 +15,7 @@ interface DashboardLayoutProps {
 
 // Feature tooltip expiry: 5 days from first release
 const API_KEYS_FEATURE_DATE = new Date('2025-12-31').getTime()
+const SUGGESTIONS_FEATURE_DATE = new Date('2026-01-05').getTime()
 const TOOLTIP_DURATION_MS = 5 * 24 * 60 * 60 * 1000 // 5 days
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -23,6 +24,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showApiKeysTooltip, setShowApiKeysTooltip] = useState(false)
+  const [showSuggestionsTooltip, setShowSuggestionsTooltip] = useState(false)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const isSuperAdmin = user?.role === 'super_admin'
@@ -32,17 +35,41 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarOpen(false)
   }, [pathname])
 
-  // Show API Keys tooltip for 5 days after feature release
+  // Show "New" badges for 5 days after feature release
   useEffect(() => {
     const now = Date.now()
     if (now < API_KEYS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
       setShowApiKeysTooltip(true)
     }
+    if (now < SUGGESTIONS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
+      setShowSuggestionsTooltip(true)
+    }
   }, [])
+
+  // Fetch pending requests count for admins
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      if (!isAdmin) return
+      try {
+        const response = await fetch('/api/membership/requests?status=pending&count_only=true')
+        const data = await response.json()
+        if (data.success) {
+          setPendingRequestsCount(data.count || 0)
+        }
+      } catch (err) {
+        console.error('Failed to fetch pending requests count:', err)
+      }
+    }
+    fetchPendingCount()
+    // Refetch when pathname changes (e.g., after approving/rejecting)
+    const interval = setInterval(fetchPendingCount, 30000) // Refresh every 30s
+    return () => clearInterval(interval)
+  }, [isAdmin, pathname])
 
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
+    { href: '/dashboard/suggestions', label: 'Suggestions', icon: Lightbulb },
     { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]
@@ -196,6 +223,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       New
                     </span>
                   )}
+                  {link.href === '/dashboard/suggestions' && showSuggestionsTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
@@ -239,6 +271,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   >
                     <link.icon className="w-5 h-5" />
                     <span>{link.label}</span>
+                    {link.href === '/admin/requests' && pendingRequestsCount > 0 && (
+                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                        {pendingRequestsCount}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

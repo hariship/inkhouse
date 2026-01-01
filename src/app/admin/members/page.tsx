@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { User } from '@/types'
-import { User as UserIcon, Shield, Ban, LayoutGrid, List, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { User as UserIcon, Shield, Ban, LayoutGrid, List, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
 type ViewMode = 'grid' | 'list'
 
@@ -24,6 +25,8 @@ export default function MembersPage() {
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 10, total: 0, totalPages: 0 })
   const [searchQuery, setSearchQuery] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
 
   // Check if current user can modify target user
   const canModifyUser = (targetUser: User) => {
@@ -105,6 +108,43 @@ export default function MembersPage() {
     }
   }
 
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user)
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return
+
+    setShowDeleteConfirm(false)
+    setProcessingId(userToDelete.id)
+
+    try {
+      const response = await fetch(`/api/users/${userToDelete.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'deleted' }),
+      })
+
+      if (response.ok) {
+        // Remove from local list
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id))
+        // Update total count
+        setMeta((prev) => ({ ...prev, total: prev.total - 1 }))
+      }
+    } catch (error) {
+      console.error('Failed to delete user:', error)
+    } finally {
+      setProcessingId(null)
+      setUserToDelete(null)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false)
+    setUserToDelete(null)
+  }
+
   const renderAvatar = (user: User, size: 'sm' | 'lg' = 'sm') => {
     const sizeClasses = size === 'lg' ? 'w-16 h-16' : 'w-10 h-10'
     const iconSize = size === 'lg' ? 'w-8 h-8' : 'w-5 h-5'
@@ -165,6 +205,18 @@ export default function MembersPage() {
           </button>
           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             {user.status === 'active' ? 'Suspend' : 'Activate'}
+          </span>
+        </div>
+        <div className="relative group">
+          <button
+            onClick={() => handleDeleteClick(user)}
+            disabled={processingId === user.id}
+            className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            Delete
           </span>
         </div>
       </div>
@@ -435,6 +487,18 @@ export default function MembersPage() {
 
       {/* Pagination */}
       {renderPagination()}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete User"
+        message={`Are you sure you want to delete ${userToDelete?.display_name}? This will soft-delete the user and they will no longer be able to access their account.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        variant="danger"
+      />
     </div>
   )
 }

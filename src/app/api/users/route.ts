@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const { data: users, error, count } = await supabase
       .from('users')
       .select('id, email, username, display_name, bio, avatar_url, role, status, created_at, last_login_at', { count: 'exact' })
+      .neq('status', 'deleted')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 

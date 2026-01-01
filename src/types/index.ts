@@ -312,3 +312,34 @@ export interface ReaderSignupFormData {
 export type ReadingFilter = 'all' | 'unread' | 'read' | 'saved'
 export type SortOption = 'date' | 'category'
 export type ViewMode = 'grid' | 'list'
+
+// Suggestion types
+export interface Suggestion {
+  id: string
+  title: string
+  description?: string
+  author_id: string
+  status: 'open' | 'shipped' | 'closed'
+  vote_count: number
+  github_issue_url?: string
+  github_issue_created_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SuggestionWithAuthor extends Suggestion {
+  author: PublicUser
+  has_voted?: boolean
+}
+
+export interface SuggestionVote {
+  id: string
+  suggestion_id: string
+  user_id: string
+  created_at: string
+}
+
+export interface SuggestionFormData {
+  title: string
+  description?: string
+}
