@@ -68,8 +68,9 @@ export function PostGrid({
     fetchStatuses()
   }, [posts, isAuthenticated])
 
-  // Show loading when filter is active but statuses haven't loaded yet
-  const statusesLoading = isAuthenticated && readingFilter !== 'all' && !statusesLoaded
+  // Show loading when authenticated user's statuses haven't loaded yet
+  // This prevents read icons from popping in after posts are visible
+  const statusesLoading = isAuthenticated && !statusesLoaded
 
   // Filter posts based on reading filter
   const filteredPosts = posts.filter((post) => {
