@@ -17,7 +17,6 @@ interface PostGridProps {
   isAuthenticated?: boolean
   readingFilter?: ReadingFilter
   initialReadStatuses?: Record<number, string | null>
-  isInitialLoading?: boolean
 }
 
 export function PostGrid({
@@ -28,7 +27,6 @@ export function PostGrid({
   isAuthenticated = false,
   readingFilter = 'all',
   initialReadStatuses = {},
-  isInitialLoading = false,
 }: PostGridProps) {
   const { setFilter } = useReading()
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts)
@@ -478,7 +476,7 @@ export function PostGrid({
       </form>
 
       {/* Posts */}
-      {isInitialLoading || isLoading || statusesLoading ? (
+      {isLoading || statusesLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
         </div>
