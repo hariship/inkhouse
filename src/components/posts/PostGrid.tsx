@@ -467,8 +467,10 @@ export function PostGrid({
 
       {/* Posts */}
       {isLoading || statusesLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-2xl font-bold text-[var(--color-text-primary)] animate-pulse">
+            INKING...
+          </div>
         </div>
       ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12">
