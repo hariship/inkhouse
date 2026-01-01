@@ -44,23 +44,29 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // First, find authors matching the search term
+      // Convert search to websearch format for full-text search
+      // This handles phrases, AND/OR operators naturally
+      const searchQuery = search.split(/\s+/).filter(Boolean).join(' & ')
+
+      // Use full-text search on search_vector column (fast, indexed)
+      // Falls back to ILIKE if full-text search fails (column might not exist yet)
+      try {
+        query = query.textSearch('search_vector', searchQuery, { type: 'plain', config: 'english' })
+      } catch {
+        // Fallback to ILIKE for backwards compatibility
+        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      }
+
+      // Also search by author name (separate query since it's in users table)
       const { data: matchingAuthors } = await supabase
         .from('users')
         .select('id')
         .or(`display_name.ilike.%${search}%,username.ilike.%${search}%`)
 
-      const authorIds = matchingAuthors?.map(a => a.id) || []
-
-      // Build search filter: title, description, category, or matching authors
-      let searchFilter = `title.ilike.%${search}%,description.ilike.%${search}%,category.ilike.%${search}%`
-
-      if (authorIds.length > 0) {
-        const authorFilters = authorIds.map(id => `author_id.eq.${id}`).join(',')
-        searchFilter += `,${authorFilters}`
+      if (matchingAuthors && matchingAuthors.length > 0) {
+        const authorIds = matchingAuthors.map(a => a.id)
+        query = query.or(authorIds.map(id => `author_id.eq.${id}`).join(','))
       }
-
-      query = query.or(searchFilter)
     }
 
     // Apply type filter with fallback for missing column
