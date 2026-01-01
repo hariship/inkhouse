@@ -188,7 +188,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
                     {comment.author?.display_name || comment.author_name}
                   </span>
                   <span className="text-sm text-[var(--color-text-muted)]">
-                    {new Date(comment.created_at).toLocaleDateString()}
+                    {new Date(comment.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
                 <p className="mt-1 text-[var(--color-text-secondary)] whitespace-pre-wrap">
@@ -209,7 +209,7 @@ export function CommentsSection({ postId, allowComments }: CommentsSectionProps)
                               {reply.author?.display_name || reply.author_name}
                             </span>
                             <span className="text-xs text-[var(--color-text-muted)]">
-                              {new Date(reply.created_at).toLocaleDateString()}
+                              {new Date(reply.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </span>
                           </div>
                           <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">

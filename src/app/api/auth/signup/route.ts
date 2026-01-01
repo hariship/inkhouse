@@ -7,6 +7,7 @@ import {
   setAuthCookies,
 } from '@/lib/auth'
 import { checkIpRateLimit, getClientIp, getRateLimitHeaders } from '@/lib/rate-limit'
+import { sendNewReaderNotification } from '@/lib/email'
 import { JWTPayload } from '@/types'
 
 export async function POST(request: NextRequest) {
@@ -126,6 +127,13 @@ export async function POST(request: NextRequest) {
       view_mode: 'grid',
       default_sort: 'date',
     })
+
+    // Notify super admin about new reader (non-blocking)
+    sendNewReaderNotification({
+      name: user.display_name,
+      username: user.username,
+      email: user.email,
+    }).catch((err) => console.error('Failed to send new reader notification:', err))
 
     // Generate tokens for auto-login
     const payload: JWTPayload = {
