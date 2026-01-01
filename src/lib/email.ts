@@ -30,11 +30,13 @@ export async function sendWelcomeEmail({
   name,
   username,
   tempPassword,
+  isGoogleUser,
 }: {
   to: string
   name: string
   username: string
-  tempPassword: string
+  tempPassword?: string
+  isGoogleUser?: boolean
 }) {
   try {
     const resend = getResendClient()
@@ -43,6 +45,33 @@ export async function sendWelcomeEmail({
     }
 
     const config = getEmailConfig()
+
+    // Different email content for Google users vs password users
+    const loginDetailsHtml = isGoogleUser
+      ? `
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0 0 12px 0; color: #374151;"><strong>Your account:</strong></p>
+            <p style="margin: 0 0 8px 0; color: #374151;">Username: <strong>${username}</strong></p>
+            <p style="margin: 0; color: #374151;">Email: <strong>${to}</strong></p>
+          </div>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            Sign in with the same Google account you used to apply.
+          </p>
+        `
+      : `
+          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0 0 12px 0; color: #374151;"><strong>Your login details:</strong></p>
+            <p style="margin: 0 0 8px 0; color: #374151;">Username: <strong>${username}</strong></p>
+            <p style="margin: 0 0 8px 0; color: #374151;">Email: <strong>${to}</strong></p>
+            <p style="margin: 0; color: #374151;">Temporary Password: <strong>${tempPassword}</strong></p>
+          </div>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            Please change your password after logging in for the first time.
+          </p>
+        `
+
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${config.from}>`,
       to: [to],
@@ -56,19 +85,10 @@ export async function sendWelcomeEmail({
           </p>
 
           <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            Your membership request has been approved. You can now log in and start writing!
+            ${isGoogleUser ? 'Great news! Your writer access has been approved.' : 'Your membership request has been approved.'} You can now log in and start writing!
           </p>
 
-          <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
-            <p style="margin: 0 0 12px 0; color: #374151;"><strong>Your login details:</strong></p>
-            <p style="margin: 0 0 8px 0; color: #374151;">Username: <strong>${username}</strong></p>
-            <p style="margin: 0 0 8px 0; color: #374151;">Email: <strong>${to}</strong></p>
-            <p style="margin: 0; color: #374151;">Temporary Password: <strong>${tempPassword}</strong></p>
-          </div>
-
-          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            Please change your password after logging in for the first time.
-          </p>
+          ${loginDetailsHtml}
 
           <a href="${config.appUrl}/login" style="display: inline-block; background-color: #0D9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px;">
             Log in to ${APP_NAME}

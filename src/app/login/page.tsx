@@ -66,18 +66,18 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {sessionExpired && (
-            <div className="rounded-md bg-[var(--color-warning-light)] p-4">
-              <p className="text-sm text-[var(--color-warning)]">Your session has expired. Please sign in again.</p>
-            </div>
-          )}
-          {error && (
-            <div className="rounded-md bg-[var(--color-error-light)] p-4">
-              <p className="text-sm text-[var(--color-error)]">{error}</p>
-            </div>
-          )}
+        {sessionExpired && (
+          <div className="rounded-md bg-[var(--color-warning-light)] p-4">
+            <p className="text-sm text-[var(--color-warning)]">Your session has expired. Please sign in again.</p>
+          </div>
+        )}
+        {error && (
+          <div className="rounded-md bg-[var(--color-error-light)] p-4">
+            <p className="text-sm text-[var(--color-error)]">{error}</p>
+          </div>
+        )}
 
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <label
@@ -164,6 +164,27 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[var(--color-border-medium)]" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-[var(--color-bg-secondary)] px-4 text-[var(--color-text-muted)]">
+              or
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <a
+            href="/api/auth/google?source=login"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-[var(--color-border-medium)] rounded-md bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors text-sm font-medium"
+          >
+            <span className="text-lg font-semibold">G</span>
+            Sign in with Google
+          </a>
+        </div>
 
         <div className="text-center">
           <Link

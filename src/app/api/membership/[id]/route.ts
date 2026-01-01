@@ -108,27 +108,100 @@ export async function PATCH(
     }
 
     if (action === 'approve') {
-      // Generate temporary password
-      const tempPassword = generateTempPassword()
-      const passwordHash = await hashPassword(tempPassword)
+      let emailResult = { success: false }
+      let isExistingUser = false
 
-      // Create user
-      const { error: userError } = await supabase.from('users').insert({
-        email: membershipRequest.email,
-        username: membershipRequest.username,
-        password_hash: passwordHash,
-        display_name: membershipRequest.name,
-        bio: membershipRequest.bio,
-        role: 'writer',
-        status: 'active',
-      })
+      // Check if this is a Google user who already has an account (signed up via choose-role)
+      if (membershipRequest.google_id) {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id, role')
+          .eq('google_id', membershipRequest.google_id)
+          .single()
 
-      if (userError) {
-        console.error('User creation error:', userError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to create user' },
-          { status: 500 }
-        )
+        if (existingUser) {
+          // Existing user - just upgrade their role to writer
+          isExistingUser = true
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ role: 'writer' })
+            .eq('id', existingUser.id)
+
+          if (updateError) {
+            console.error('User role update error:', updateError)
+            return NextResponse.json(
+              { success: false, error: 'Failed to upgrade user role' },
+              { status: 500 }
+            )
+          }
+
+          // Send writer access granted email (no password needed)
+          emailResult = await sendWelcomeEmail({
+            to: membershipRequest.email,
+            name: membershipRequest.name,
+            username: membershipRequest.username,
+            isGoogleUser: true,
+          })
+        } else {
+          // Google user from /join - create account with google_id
+          const { error: userError } = await supabase.from('users').insert({
+            email: membershipRequest.email,
+            username: membershipRequest.username,
+            display_name: membershipRequest.name,
+            bio: membershipRequest.bio,
+            avatar_url: membershipRequest.google_avatar_url,
+            google_id: membershipRequest.google_id,
+            auth_provider: 'google',
+            role: 'writer',
+            status: 'active',
+          })
+
+          if (userError) {
+            console.error('User creation error:', userError)
+            return NextResponse.json(
+              { success: false, error: 'Failed to create user' },
+              { status: 500 }
+            )
+          }
+
+          // Send welcome email for Google user (no password needed)
+          emailResult = await sendWelcomeEmail({
+            to: membershipRequest.email,
+            name: membershipRequest.name,
+            username: membershipRequest.username,
+            isGoogleUser: true,
+          })
+        }
+      } else {
+        // Regular (non-Google) user - generate temp password
+        const tempPassword = generateTempPassword()
+        const passwordHash = await hashPassword(tempPassword)
+
+        const { error: userError } = await supabase.from('users').insert({
+          email: membershipRequest.email,
+          username: membershipRequest.username,
+          password_hash: passwordHash,
+          display_name: membershipRequest.name,
+          bio: membershipRequest.bio,
+          role: 'writer',
+          status: 'active',
+        })
+
+        if (userError) {
+          console.error('User creation error:', userError)
+          return NextResponse.json(
+            { success: false, error: 'Failed to create user' },
+            { status: 500 }
+          )
+        }
+
+        // Send welcome email with credentials
+        emailResult = await sendWelcomeEmail({
+          to: membershipRequest.email,
+          name: membershipRequest.name,
+          username: membershipRequest.username,
+          tempPassword,
+        })
       }
 
       // Update request status
@@ -141,16 +214,8 @@ export async function PATCH(
         })
         .eq('id', id)
 
-      // Send welcome email with credentials
-      const emailResult = await sendWelcomeEmail({
-        to: membershipRequest.email,
-        name: membershipRequest.name,
-        username: membershipRequest.username,
-        tempPassword,
-      })
-
       if (!emailResult.success) {
-        console.error('Failed to send welcome email:', emailResult.error)
+        console.error('Failed to send welcome email:', emailResult)
       }
 
       // Audit log
@@ -158,7 +223,7 @@ export async function PATCH(
 
       return NextResponse.json({
         success: true,
-        message: 'User approved and welcome email sent',
+        message: isExistingUser ? 'User upgraded to writer' : 'User approved and welcome email sent',
         emailSent: emailResult.success,
       })
     } else {

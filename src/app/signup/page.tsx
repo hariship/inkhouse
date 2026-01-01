@@ -73,7 +73,28 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <div className="mt-8">
+          <a
+            href="/api/auth/google?source=signup"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-[var(--color-border-medium)] rounded-md bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors text-sm font-medium"
+          >
+            <span className="text-lg font-semibold">G</span>
+            Sign up with Google
+          </a>
+        </div>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[var(--color-border-medium)]" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-[var(--color-bg-secondary)] px-4 text-[var(--color-text-muted)]">
+              or sign up with email
+            </span>
+          </div>
+        </div>
+
+        <form className="space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="rounded-md bg-[var(--color-error-light)] p-4">
               <p className="text-sm text-[var(--color-error)]">{error}</p>
