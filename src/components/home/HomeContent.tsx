@@ -90,8 +90,16 @@ export default function HomeContent({
   const isFullyLoaded =
     mounted && !authLoading && (!isAuthenticated || (preferencesLoaded && statusesLoaded))
 
-  // Don't show full-page INKING here - loading.tsx handles page-level loading
-  // Instead, render PostGrid but pass loading state so it can show inline spinner
+  // Show full-page loading until ALL data is ready
+  // This prevents any partial UI from showing
+  if (!isFullyLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
+      </div>
+    )
+  }
+
   return (
     <PostGrid
       initialPosts={initialPosts}
@@ -101,7 +109,6 @@ export default function HomeContent({
       isAuthenticated={isAuthenticated}
       readingFilter={filter}
       initialReadStatuses={initialReadStatuses}
-      isInitialLoading={!isFullyLoaded}
     />
   )
 }
