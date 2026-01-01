@@ -7,6 +7,7 @@ import { useAuth } from './AuthContext'
 interface ReadingContextType {
   viewMode: ViewMode
   filter: ReadingFilter
+  preferencesLoaded: boolean
   setViewMode: (mode: ViewMode) => void
   setFilter: (filter: ReadingFilter) => void
 }
@@ -95,7 +96,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ReadingContext.Provider value={{ viewMode, filter, setViewMode, setFilter }}>
+    <ReadingContext.Provider value={{ viewMode, filter, preferencesLoaded: loaded, setViewMode, setFilter }}>
       {children}
     </ReadingContext.Provider>
   )
@@ -107,6 +108,7 @@ export function useReading() {
     return {
       viewMode: 'grid' as ViewMode,
       filter: 'all' as ReadingFilter,
+      preferencesLoaded: false,
       setViewMode: () => {},
       setFilter: () => {},
     }
