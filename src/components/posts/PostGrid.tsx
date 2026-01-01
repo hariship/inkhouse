@@ -16,6 +16,8 @@ interface PostGridProps {
   viewMode?: ViewMode
   isAuthenticated?: boolean
   readingFilter?: ReadingFilter
+  initialReadStatuses?: Record<number, string | null>
+  isInitialLoading?: boolean
 }
 
 export function PostGrid({
@@ -25,6 +27,8 @@ export function PostGrid({
   viewMode = 'grid',
   isAuthenticated = false,
   readingFilter = 'all',
+  initialReadStatuses = {},
+  isInitialLoading = false,
 }: PostGridProps) {
   const { setFilter } = useReading()
   const [posts, setPosts] = useState<PostWithAuthor[]>(initialPosts)
@@ -36,11 +40,20 @@ export function PostGrid({
   const [isFiltering, setIsFiltering] = useState(false)
 
   // Track reading status for authenticated users (stores read_at timestamp or null)
-  const [readStatuses, setReadStatuses] = useState<Record<number, string | null>>({})
-  const [statusesLoaded, setStatusesLoaded] = useState(false)
+  // Initialize with statuses passed from HomeContent (avoids separate loading state on initial render)
+  const [readStatuses, setReadStatuses] = useState<Record<number, string | null>>(initialReadStatuses)
+  const [statusesLoaded, setStatusesLoaded] = useState(true) // Start true since we have initial statuses
+  const [isInitialRender, setIsInitialRender] = useState(true)
 
-  // Fetch reading statuses when posts change and user is authenticated
+  // Fetch reading statuses when posts change AFTER initial render (pagination, search)
   useEffect(() => {
+    // Skip initial render - we already have statuses from HomeContent
+    if (isInitialRender) {
+      setIsInitialRender(false)
+      return
+    }
+
+    // Only fetch for authenticated users when posts change
     if (!isAuthenticated || posts.length === 0) {
       setStatusesLoaded(true)
       return
@@ -66,11 +79,10 @@ export function PostGrid({
     }
 
     fetchStatuses()
-  }, [posts, isAuthenticated])
+  }, [posts, isAuthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show loading when authenticated user's statuses haven't loaded yet
-  // This prevents read icons from popping in after posts are visible
-  const statusesLoading = isAuthenticated && !statusesLoaded
+  // Show loading only for subsequent fetches (pagination, search), not initial render
+  const statusesLoading = isAuthenticated && !statusesLoaded && !isInitialRender
 
   // Filter posts based on reading filter
   const filteredPosts = posts.filter((post) => {
@@ -466,11 +478,9 @@ export function PostGrid({
       </form>
 
       {/* Posts */}
-      {isLoading || statusesLoading ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-2xl font-bold text-[var(--color-text-primary)] animate-pulse">
-            INKING...
-          </div>
+      {isInitialLoading || isLoading || statusesLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-button-primary)]"></div>
         </div>
       ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12">
