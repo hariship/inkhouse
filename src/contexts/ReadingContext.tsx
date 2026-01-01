@@ -17,7 +17,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
   // Default to 'list' (compact) on mobile, 'grid' on desktop
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
-  const [filter, setFilterState] = useState<ReadingFilter>('unread')
+  // Default to 'all' until preferences are loaded
+  const [filter, setFilterState] = useState<ReadingFilter>('all')
   const [loaded, setLoaded] = useState(false)
 
   // Set initial view mode based on screen size (mobile defaults to compact list)
