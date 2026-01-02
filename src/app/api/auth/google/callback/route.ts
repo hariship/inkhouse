@@ -6,6 +6,7 @@ import {
   setAuthCookies,
 } from '@/lib/auth'
 import { sendNewReaderNotification, sendNewRequestNotification } from '@/lib/email'
+import { logLoginSuccess } from '@/lib/audit'
 import { JWTPayload } from '@/types'
 import crypto from 'crypto'
 
@@ -325,6 +326,9 @@ async function loginUser(
     .from('users')
     .update({ last_login_at: new Date().toISOString() })
     .eq('id', user.id)
+
+  // Audit log
+  await logLoginSuccess(user.id, user.email, request)
 
   // Set cookies and redirect
   await setAuthCookies(accessToken, refreshToken)
