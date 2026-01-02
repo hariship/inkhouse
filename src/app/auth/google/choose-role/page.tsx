@@ -28,7 +28,11 @@ function ChooseRoleForm() {
     }
 
     try {
-      const data = JSON.parse(Buffer.from(token, 'base64url').toString()) as GoogleUserData
+      // Convert base64url to base64 (replace - with +, _ with /, add padding)
+      const base64 = token.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+      const decoded = atob(padded)
+      const data = JSON.parse(decoded) as GoogleUserData
 
       // Check if token is expired (10 minutes)
       if (Date.now() - data.timestamp > 10 * 60 * 1000) {
