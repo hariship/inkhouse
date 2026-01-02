@@ -6,7 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb, MessageSquareLock, BarChart3, Sun } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb, MessageSquareLock, BarChart3, Sun, Mail } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -123,6 +123,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const superAdminLinks = [
     { href: '/dashboard/desk', label: 'From the Desk', icon: NotebookPen },
+    { href: '/admin/email', label: 'Email', icon: Mail },
   ]
 
   const handleLogoutClick = () => {
