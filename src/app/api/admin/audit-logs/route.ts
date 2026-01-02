@@ -43,7 +43,7 @@ export async function GET() {
         user:users!audit_logs_user_id_fkey(id, username, display_name)
       `)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(10)
 
     if (error) {
       console.error('Fetch audit logs error:', error)
