@@ -9,6 +9,7 @@ import parse from 'html-react-parser'
 import { CommentsSection } from '@/components/comments/CommentsSection'
 import { CritiqueSection } from '@/components/critiques/CritiqueSection'
 import { ViewTracker } from '@/components/analytics/ViewTracker'
+import { MarkAsReadPrompt } from '@/components/reading/MarkAsReadPrompt'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -120,9 +121,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
 
         {/* Content */}
-        <div className="prose dark:prose-invert max-w-none mb-12">
+        <div className="prose dark:prose-invert max-w-none mb-8">
           {parse(post.content.replace(/&nbsp;/g, ' '))}
         </div>
+
+        {/* Mark as Read */}
+        <MarkAsReadPrompt postId={post.id} />
 
         {/* Author Card */}
         {post.author && (
