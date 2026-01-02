@@ -79,9 +79,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
-    { href: '/dashboard/critiques', label: 'Critiques', icon: MessageSquareLock },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/dashboard/suggestions', label: 'Suggestions', icon: Lightbulb },
+    { href: '/dashboard/insights', label: 'Insights', icon: Lightbulb },
+    { href: '/dashboard/suggestions', label: 'Suggestions', icon: MessageSquareLock },
     { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]
@@ -231,22 +230,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <link.icon className="w-5 h-5" />
                   <span>{link.label}</span>
-                  {link.href === '/dashboard/critiques' && showCritiquesTooltip && (
-                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
-                      New
-                    </span>
-                  )}
-                  {link.href === '/dashboard/analytics' && showAnalyticsTooltip && (
-                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
-                      New
-                    </span>
-                  )}
-                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
+                  {link.href === '/dashboard/insights' && (showCritiquesTooltip || showAnalyticsTooltip) && (
                     <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                       New
                     </span>
                   )}
                   {link.href === '/dashboard/suggestions' && showSuggestionsTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
+                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
                     <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                       New
                     </span>
