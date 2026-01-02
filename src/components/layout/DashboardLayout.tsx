@@ -80,7 +80,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
     { href: '/dashboard/insights', label: 'Insights', icon: Lightbulb },
-    { href: '/dashboard/suggestions', label: 'Suggestions', icon: MessageSquareLock },
+    { href: '/dashboard/suggestions', label: 'Notice Board', icon: MessageSquareLock },
     { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]

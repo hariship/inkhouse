@@ -228,9 +228,9 @@ export default function SuggestionsPage() {
 
   const getCategoryStyle = (category: string) => {
     switch (category) {
-      case 'new': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'improved': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-      case 'fixed': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+      case 'new': return 'bg-cyan-700 dark:bg-cyan-900 text-white'
+      case 'improved': return 'bg-teal-700 dark:bg-teal-900 text-white'
+      case 'fixed': return 'bg-slate-600 dark:bg-slate-800 text-white'
       default: return ''
     }
   }
@@ -241,7 +241,7 @@ export default function SuggestionsPage() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
-            {mainTab === 'suggestions' ? 'Suggestions' : 'Updates'}
+            Notice Board
           </h1>
           <p className="text-sm sm:text-base text-[var(--color-text-secondary)]">
             {mainTab === 'suggestions'
@@ -292,6 +292,9 @@ export default function SuggestionsPage() {
         >
           <Megaphone className="w-4 h-4 inline mr-2" />
           Updates
+          <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+            New
+          </span>
         </button>
       </div>
 
@@ -466,14 +469,27 @@ export default function SuggestionsPage() {
       {mainTab === 'updates' && (
         <>
           {updatesLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4">
-                  <div className="h-5 bg-[var(--color-bg-tertiary)] rounded animate-pulse mb-2" style={{ width: `${40 + i * 15}%` }} />
-                  <div className="h-4 w-3/4 bg-[var(--color-bg-tertiary)] rounded animate-pulse mb-2" />
-                  <div className="h-3 w-24 bg-[var(--color-bg-tertiary)] rounded animate-pulse" />
-                </div>
-              ))}
+            <div className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--color-border-light)]">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Update</th>
+                    {isSuperAdmin && <th className="w-10"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3].map((i) => (
+                    <tr key={i} className="border-b border-[var(--color-border-light)] last:border-0">
+                      <td className="px-4 py-3"><div className="h-4 w-20 bg-[var(--color-bg-tertiary)] rounded animate-pulse" /></td>
+                      <td className="px-4 py-3"><div className="h-5 w-16 bg-[var(--color-bg-tertiary)] rounded-full animate-pulse" /></td>
+                      <td className="px-4 py-3"><div className="h-4 bg-[var(--color-bg-tertiary)] rounded animate-pulse" style={{ width: `${50 + i * 15}%` }} /></td>
+                      {isSuperAdmin && <td></td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : updates.length === 0 ? (
             <div className="text-center py-12 bg-[var(--color-bg-card)] rounded-lg">
@@ -483,48 +499,60 @@ export default function SuggestionsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {updates.map((update) => (
-                <div
-                  key={update.id}
-                  className="group bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+            <div className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--color-border-light)]">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-[var(--color-text-muted)] uppercase">Update</th>
+                    {isSuperAdmin && <th className="w-10"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {updates.map((update) => (
+                    <tr
+                      key={update.id}
+                      className="group border-b border-[var(--color-border-light)] last:border-0 hover:bg-[var(--color-bg-hover)]"
+                    >
+                      <td className="px-4 py-3 text-sm text-[var(--color-text-muted)] whitespace-nowrap">
+                        {new Date(update.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryStyle(update.category)}`}>
                           {getCategoryIcon(update.category)}
                           {update.category.charAt(0).toUpperCase() + update.category.slice(1)}
                         </span>
-                        <span className="text-xs text-[var(--color-text-muted)]">
-                          {new Date(update.created_at).toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                      <h3 className="font-medium text-[var(--color-text-primary)] mb-1">
-                        {update.title}
-                      </h3>
-                      {update.description && (
-                        <p className="text-sm text-[var(--color-text-secondary)]">
-                          {update.description}
-                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[var(--color-text-primary)] text-sm">
+                          {update.title}
+                        </div>
+                        {update.description && (
+                          <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 line-clamp-1">
+                            {update.description}
+                          </p>
+                        )}
+                      </td>
+                      {isSuperAdmin && (
+                        <td className="px-2 py-3">
+                          <button
+                            onClick={() => handleDeleteUpdate(update.id)}
+                            className="p-1.5 text-[var(--color-error)] opacity-0 group-hover:opacity-100 hover:opacity-80 transition-opacity"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       )}
-                    </div>
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => handleDeleteUpdate(update.id)}
-                        className="p-1.5 text-[var(--color-error)] opacity-0 group-hover:opacity-100 hover:opacity-80 transition-opacity"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </>
