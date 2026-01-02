@@ -406,3 +406,17 @@ export interface AdminAnalytics {
   content_growth: { date: string; count: number }[]
   top_authors: { author: PublicUser; post_count: number; total_views: number }[]
 }
+
+// Feature Updates (changelog)
+export interface FeatureUpdate {
+  id: string
+  title: string
+  description?: string
+  category: 'new' | 'improved' | 'fixed'
+  created_by: string
+  created_at: string
+}
+
+export interface FeatureUpdateWithAuthor extends FeatureUpdate {
+  author?: PublicUser
+}

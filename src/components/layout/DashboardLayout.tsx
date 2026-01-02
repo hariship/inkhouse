@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb, MessageSquareLock, BarChart3 } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb, MessageSquareLock, BarChart3, Sun } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -22,6 +23,7 @@ const TOOLTIP_DURATION_MS = 5 * 24 * 60 * 60 * 1000 // 5 days
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
   const pathname = usePathname()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -30,6 +32,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [showCritiquesTooltip, setShowCritiquesTooltip] = useState(false)
   const [showAnalyticsTooltip, setShowAnalyticsTooltip] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [showThemePrompt, setShowThemePrompt] = useState(false)
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const isSuperAdmin = user?.role === 'super_admin'
@@ -38,6 +41,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     setSidebarOpen(false)
   }, [pathname])
+
+  // Default to dark theme for dashboard and prompt if not already set
+  useEffect(() => {
+    const hasBeenPrompted = localStorage.getItem('dashboard-theme-prompted')
+    if (!hasBeenPrompted) {
+      // Set dark theme for dashboard
+      setTheme('dark')
+      // Show prompt after a short delay
+      const timer = setTimeout(() => {
+        setShowThemePrompt(true)
+      }, 800)
+      return () => clearTimeout(timer)
+    }
+  }, [])
+
+  const handleThemePromptDismiss = () => {
+    localStorage.setItem('dashboard-theme-prompted', 'true')
+    setShowThemePrompt(false)
+  }
+
+  const handleSwitchToLight = () => {
+    setTheme('light')
+    localStorage.setItem('dashboard-theme-prompted', 'true')
+    setShowThemePrompt(false)
+  }
 
   // Show "New" badges for 5 days after feature release
   useEffect(() => {
@@ -79,9 +107,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
-    { href: '/dashboard/critiques', label: 'Critiques', icon: MessageSquareLock },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/dashboard/suggestions', label: 'Suggestions', icon: Lightbulb },
+    { href: '/dashboard/insights', label: 'Insights', icon: Lightbulb },
+    { href: '/dashboard/suggestions', label: 'Notice Board', icon: MessageSquareLock },
     { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
   ]
@@ -205,6 +232,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
 
+          {/* Theme Prompt */}
+          {showThemePrompt && (
+            <div className="mx-4 mt-4 p-3 bg-[var(--color-bg-tertiary)] border border-[var(--color-border-light)] rounded-lg">
+              <p className="text-xs text-[var(--color-text-secondary)] mb-2">
+                Dark mode enabled. Prefer light?
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSwitchToLight}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[var(--color-bg-card)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] rounded border border-[var(--color-border-light)] transition-colors whitespace-nowrap"
+                >
+                  <Sun className="w-3 h-3" />
+                  Light
+                </button>
+                <button
+                  onClick={handleThemePromptDismiss}
+                  className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors whitespace-nowrap"
+                >
+                  Keep dark
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <Link
@@ -231,22 +282,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <link.icon className="w-5 h-5" />
                   <span>{link.label}</span>
-                  {link.href === '/dashboard/critiques' && showCritiquesTooltip && (
-                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
-                      New
-                    </span>
-                  )}
-                  {link.href === '/dashboard/analytics' && showAnalyticsTooltip && (
-                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
-                      New
-                    </span>
-                  )}
-                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
+                  {link.href === '/dashboard/insights' && (showCritiquesTooltip || showAnalyticsTooltip) && (
                     <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                       New
                     </span>
                   )}
                   {link.href === '/dashboard/suggestions' && showSuggestionsTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
+                  {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
                     <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                       New
                     </span>
