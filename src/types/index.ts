@@ -343,3 +343,66 @@ export interface SuggestionFormData {
   title: string
   description?: string
 }
+
+// Critique types (private peer reviews)
+export interface Critique {
+  id: string
+  post_id: number
+  author_id: string
+  content: string
+  parent_id?: string
+  status: 'active' | 'deleted'
+  created_at: string
+  updated_at: string
+}
+
+export interface CritiqueWithAuthor extends Critique {
+  author: PublicUser
+  replies?: CritiqueWithAuthor[]
+}
+
+export interface CritiqueFormData {
+  content: string
+  parent_id?: string
+}
+
+// Analytics types
+export interface PageView {
+  id: string
+  post_id: number
+  viewed_at: string
+}
+
+export interface PostAnalytics {
+  post_id: number
+  title: string
+  normalized_title: string
+  views: number
+  reads: number
+  box_additions: number
+  bookmarks: number
+  comments: number
+  critiques: number
+}
+
+export interface WriterAnalytics {
+  total_posts: number
+  total_views: number
+  total_reads: number
+  total_box_additions: number
+  total_bookmarks: number
+  total_comments: number
+  total_critiques: number
+  posts: PostAnalytics[]
+}
+
+export interface AdminAnalytics {
+  total_users: number
+  total_writers: number
+  total_readers: number
+  total_posts: number
+  total_views: number
+  user_growth: { date: string; count: number }[]
+  content_growth: { date: string; count: number }[]
+  top_authors: { author: PublicUser; post_count: number; total_views: number }[]
+}

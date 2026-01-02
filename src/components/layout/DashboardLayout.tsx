@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb } from 'lucide-react'
+import { PenLine, FileText, User, LogOut, Home, Users, Settings, Menu, X, Key, NotebookPen, Lightbulb, MessageSquareLock, BarChart3 } from 'lucide-react'
 import ThemeToggle from '@/components/common/ThemeToggle'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
@@ -16,6 +16,8 @@ interface DashboardLayoutProps {
 // Feature tooltip expiry: 5 days from first release
 const API_KEYS_FEATURE_DATE = new Date('2025-12-31').getTime()
 const SUGGESTIONS_FEATURE_DATE = new Date('2026-01-05').getTime()
+const CRITIQUES_FEATURE_DATE = new Date('2026-01-02').getTime()
+const ANALYTICS_FEATURE_DATE = new Date('2026-01-02').getTime()
 const TOOLTIP_DURATION_MS = 5 * 24 * 60 * 60 * 1000 // 5 days
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -25,6 +27,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showApiKeysTooltip, setShowApiKeysTooltip] = useState(false)
   const [showSuggestionsTooltip, setShowSuggestionsTooltip] = useState(false)
+  const [showCritiquesTooltip, setShowCritiquesTooltip] = useState(false)
+  const [showAnalyticsTooltip, setShowAnalyticsTooltip] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
@@ -43,6 +47,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
     if (now < SUGGESTIONS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
       setShowSuggestionsTooltip(true)
+    }
+    if (now < CRITIQUES_FEATURE_DATE + TOOLTIP_DURATION_MS) {
+      setShowCritiquesTooltip(true)
+    }
+    if (now < ANALYTICS_FEATURE_DATE + TOOLTIP_DURATION_MS) {
+      setShowAnalyticsTooltip(true)
     }
   }, [])
 
@@ -69,6 +79,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const writerLinks = [
     { href: '/dashboard', label: 'My Posts', icon: FileText },
     { href: '/dashboard/new', label: 'New Post', icon: PenLine },
+    { href: '/dashboard/critiques', label: 'Critiques', icon: MessageSquareLock },
+    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/dashboard/suggestions', label: 'Suggestions', icon: Lightbulb },
     { href: '/dashboard/api-keys', label: 'API Keys', icon: Key },
     { href: '/dashboard/profile', label: 'Profile', icon: User },
@@ -79,6 +91,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/admin/requests', label: 'Requests', icon: Users },
     { href: '/admin/members', label: 'Members', icon: Users },
     { href: '/admin/posts', label: 'All Posts', icon: FileText },
+    { href: '/admin/analytics', label: 'Platform Analytics', icon: BarChart3 },
   ]
 
   const superAdminLinks = [
@@ -218,6 +231,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 >
                   <link.icon className="w-5 h-5" />
                   <span>{link.label}</span>
+                  {link.href === '/dashboard/critiques' && showCritiquesTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
+                  {link.href === '/dashboard/analytics' && showAnalyticsTooltip && (
+                    <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                      New
+                    </span>
+                  )}
                   {link.href === '/dashboard/api-keys' && showApiKeysTooltip && (
                     <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                       New
@@ -274,6 +297,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     {link.href === '/admin/requests' && pendingRequestsCount > 0 && (
                       <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
                         {pendingRequestsCount}
+                      </span>
+                    )}
+                    {link.href === '/admin/analytics' && showAnalyticsTooltip && (
+                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-cyan-800 text-white font-medium">
+                        New
                       </span>
                     )}
                   </Link>

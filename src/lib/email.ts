@@ -412,6 +412,76 @@ export async function sendNewReaderNotification({
   }
 }
 
+export async function sendNewCritiqueNotification({
+  to,
+  authorName,
+  postTitle,
+  postSlug,
+  critiquerName,
+}: {
+  to: string
+  authorName: string
+  postTitle: string
+  postSlug: string
+  critiquerName: string
+}) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      return { success: false, error: EMAIL_ERRORS.NOT_CONFIGURED }
+    }
+
+    const config = getEmailConfig()
+    const postUrl = `${config.appUrl}/post/${postSlug}`
+    const critiquesUrl = `${config.appUrl}/dashboard/critiques`
+
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${config.from}>`,
+      to: [to],
+      subject: `New critique on "${postTitle}"`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #0D9488; margin-bottom: 24px;">New Critique Received</h1>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            Hi ${authorName},
+          </p>
+
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            <strong>${critiquerName}</strong> has left a critique on your article "<strong>${postTitle}</strong>".
+          </p>
+
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+            Critiques are private peer reviews visible only to you. They're meant to help improve your writing.
+          </p>
+
+          <a href="${critiquesUrl}" style="display: inline-block; background-color: #0D9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px;">
+            View Critique
+          </a>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+            <a href="${postUrl}" style="color: #0D9488;">View your post</a>
+          </p>
+
+          <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+            ${APP_NAME}
+          </p>
+        </div>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send critique notification:', error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Critique notification error:', error)
+    return { success: false, error }
+  }
+}
+
 export async function sendNewRequestNotification({
   name,
   username,
