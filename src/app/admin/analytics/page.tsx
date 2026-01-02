@@ -2,25 +2,51 @@
 
 import { useState, useEffect } from 'react'
 import { AdminAnalytics } from '@/types'
-import { BarChart3, Users, FileText, Eye, PenLine, BookOpen, User } from 'lucide-react'
+import { BarChart3, Users, FileText, Eye, PenLine, BookOpen, User, LogIn, UserPlus, Key, UserCog, Shield } from 'lucide-react'
 import { StatsCard } from '@/components/analytics/StatsCard'
 import Image from 'next/image'
 
+interface AuditLog {
+  id: string
+  action: string
+  user_id: string
+  target_id?: string
+  target_type?: string
+  details: Record<string, unknown>
+  ip_address?: string
+  created_at: string
+  user?: {
+    id: string
+    username: string
+    display_name: string
+  }
+}
+
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/admin/analytics')
-        const data = await response.json()
+        const [analyticsRes, auditRes] = await Promise.all([
+          fetch('/api/admin/analytics'),
+          fetch('/api/admin/audit-logs')
+        ])
 
-        if (data.success) {
-          setAnalytics(data.data)
+        const analyticsData = await analyticsRes.json()
+        const auditData = await auditRes.json()
+
+        if (analyticsData.success) {
+          setAnalytics(analyticsData.data)
         } else {
-          setError(data.error || 'Failed to load analytics')
+          setError(analyticsData.error || 'Failed to load analytics')
+        }
+
+        if (auditData.success) {
+          setAuditLogs(auditData.data)
         }
       } catch {
         setError('Failed to load analytics')
@@ -29,8 +55,51 @@ export default function AdminAnalyticsPage() {
       }
     }
 
-    fetchAnalytics()
+    fetchData()
   }, [])
+
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'login.success':
+      case 'login.failed':
+        return <LogIn className="w-4 h-4" />
+      case 'membership.approve':
+      case 'membership.reject':
+        return <UserPlus className="w-4 h-4" />
+      case 'api_key.create':
+      case 'api_key.revoke':
+        return <Key className="w-4 h-4" />
+      case 'user.role_change':
+      case 'user.status_change':
+        return <UserCog className="w-4 h-4" />
+      default:
+        return <Shield className="w-4 h-4" />
+    }
+  }
+
+  const getActionLabel = (action: string) => {
+    switch (action) {
+      case 'login.success': return 'Logged in'
+      case 'login.failed': return 'Login failed'
+      case 'membership.approve': return 'Approved member'
+      case 'membership.reject': return 'Rejected member'
+      case 'api_key.create': return 'Created API key'
+      case 'api_key.revoke': return 'Revoked API key'
+      case 'user.role_change': return 'Changed role'
+      case 'user.status_change': return 'Changed status'
+      default: return action
+    }
+  }
+
+  const getActionStyle = (action: string) => {
+    if (action.includes('success') || action.includes('approve') || action.includes('create')) {
+      return 'text-[var(--color-success)]'
+    }
+    if (action.includes('failed') || action.includes('reject') || action.includes('revoke')) {
+      return 'text-[var(--color-error)]'
+    }
+    return 'text-[var(--color-text-muted)]'
+  }
 
   if (isLoading) {
     return (
@@ -108,7 +177,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Top Authors */}
-      <div className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4">
+      <div className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4 mb-8">
         <h2 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">
           Top Authors
         </h2>
@@ -171,6 +240,71 @@ export default function AdminAnalyticsPage() {
                     </td>
                     <td className="text-center py-3 px-4 text-[var(--color-text-secondary)]">
                       {item.total_views}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] p-4">
+        <h2 className="text-lg font-medium text-[var(--color-text-primary)] mb-4">
+          Recent Activity
+        </h2>
+
+        {auditLogs.length === 0 ? (
+          <p className="text-[var(--color-text-muted)] text-center py-8">
+            No activity recorded yet.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--color-border-light)]">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">
+                    Time
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">
+                    User
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">
+                    Action
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-[var(--color-text-muted)] uppercase">
+                    Details
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    className="border-b border-[var(--color-border-light)] last:border-0 hover:bg-[var(--color-bg-hover)]"
+                  >
+                    <td className="py-3 px-4 text-sm text-[var(--color-text-muted)] whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-[var(--color-text-primary)]">
+                      {log.user?.display_name || log.details?.email as string || 'Unknown'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center gap-1.5 text-sm ${getActionStyle(log.action)}`}>
+                        {getActionIcon(log.action)}
+                        {getActionLabel(log.action)}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-[var(--color-text-muted)]">
+                      {log.ip_address && (
+                        <span className="font-mono text-xs">{log.ip_address}</span>
+                      )}
                     </td>
                   </tr>
                 ))}
