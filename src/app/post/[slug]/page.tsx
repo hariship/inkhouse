@@ -7,6 +7,8 @@ import { Calendar, User, ArrowLeft, Globe, Twitter, Github, Linkedin } from 'luc
 import { createServerClient } from '@/lib/supabase'
 import parse from 'html-react-parser'
 import { CommentsSection } from '@/components/comments/CommentsSection'
+import { CritiqueSection } from '@/components/critiques/CritiqueSection'
+import { ViewTracker } from '@/components/analytics/ViewTracker'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -66,6 +68,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       <Navbar />
 
       <article className="max-w-3xl mx-auto px-4 py-8">
+        {/* Track page view */}
+        <ViewTracker postId={post.id} />
+
         {/* Back link */}
         <Link
           href="/"
@@ -189,6 +194,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
         {/* Comments */}
         <CommentsSection postId={post.id} allowComments={post.allow_comments !== false} />
+
+        {/* Critique Section (for writers only) */}
+        <CritiqueSection postId={post.id} postAuthorId={post.author_id} />
       </article>
 
       {/* Footer */}

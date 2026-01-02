@@ -3,60 +3,69 @@ import { getAuthUser, isSuperAdmin } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase'
 import { sendNewsletter } from '@/lib/email'
 
-const NEW_YEAR_2025_HTML = `
+const NEWSLETTER_HTML = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #374151;">
-  <p style="font-size: 16px; line-height: 1.8;">Hi there,</p>
-
-  <p style="font-size: 16px; line-height: 1.8;">
-    As we step into 2025, I wanted to take a moment to thank you for being part of Inkhouse.
+  <p style="font-size: 12px; color: #9ca3af; margin-bottom: 24px;">
+    January 1, 2026 · 1 min read
   </p>
 
   <p style="font-size: 16px; line-height: 1.8;">
-    This past year, I've been thinking deeply about what it means to read online. In a world of endless feeds and algorithmic recommendations, I wanted Inkhouse to feel different. A place where <em>you</em> decide what to read, when to read it, and how to organize your reading life.
+    Today, I introduced a couple of features to Inkhouse, intentionally avoiding likes, subscriptions, and notifications.
   </p>
 
-  <h3 style="color: #0D9488; margin-top: 32px;">Your reading, your way</h3>
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
   <p style="font-size: 16px; line-height: 1.8;">
-    You can now track what you've read and what's waiting for you. No pressure, no notifications nagging you. Just a simple way to know where you left off. When you've caught up, you'll simply see "You're all caught up!" and that's it.
+    A single "like" flattens too much. You may appreciate the writing but not agree with the idea. You may agree with the idea but not the way it is expressed. You may simply want to think about it longer. Reducing all of that to one action takes away the reader's agency.
   </p>
 
-  <h3 style="color: #0D9488; margin-top: 32px;">Boxes for your thoughts</h3>
   <p style="font-size: 16px; line-height: 1.8;">
-    Found a post you want to save for later? Create a box. Call it "Weekend reads" or "Ideas to revisit" or whatever makes sense to you. Your boxes are yours. A personal library that grows with your interests.
+    Instead, Inkhouse treats reading as a relationship, not a reaction. You can mark something as read, return to it later, or save it into a <strong>Box</strong> if it matters to you. Boxes exist so that writing can be revisited, not just acknowledged and forgotten.
   </p>
 
-  <h3 style="color: #0D9488; margin-top: 32px;">A home on any screen</h3>
+  <p style="font-size: 16px; line-height: 1.8; font-style: italic; color: #0D9488;">
+    If an idea stays with you, it deserves a place, not a count.
+  </p>
+
   <p style="font-size: 16px; line-height: 1.8;">
-    Whether you're reading on your phone during a commute or at your desk with a cup of coffee, Inkhouse adapts. On mobile, I've made things lighter and faster. Compact views that get out of your way and let the words breathe.
+    Discussions remain open through comments. Nothing demands a response.
   </p>
 
-  <h3 style="color: #0D9488; margin-top: 32px;">From the Desk</h3>
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+
   <p style="font-size: 16px; line-height: 1.8;">
-    I've also created a little corner called "From the Desk". A place for updates, stories, and reflections from behind the scenes at Inkhouse.
+    Platform decisions follow the same philosophy.
   </p>
 
-  <div style="border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 24px;">
-    <p style="font-size: 16px; line-height: 1.8;">
-      Thank you for reading, for writing, and for being here. Here's to more words, more stories, and more moments of connection in 2025.
-    </p>
+  <p style="font-size: 16px; line-height: 1.8;">
+    Inkhouse is an open source project. While I run the platform, I do not believe decisions about its direction should be made unilaterally. Writers can propose ideas, discuss them, and vote. When a suggestion receives majority support, it becomes a real signal to act. If more than half the writers want something, I commit to implementing it.
+  </p>
 
-    <p style="font-size: 16px; line-height: 1.8;">
-      Happy New Year!
-    </p>
+  <p style="font-size: 16px; line-height: 1.8;">
+    I introduced a feature where &gt;50% of upvotes on any suggestion will be notified to me and raised as a GitHub issue.
+  </p>
 
-    <p style="font-size: 16px; line-height: 1.8; margin-top: 24px;">
-      Warm regards,<br/>
-      Haripriya
-    </p>
-  </div>
+  <p style="font-size: 16px; line-height: 1.8; font-style: italic; color: #0D9488;">
+    Nothing ships silently. Nothing is decided in private.
+  </p>
+
+  <p style="font-size: 16px; line-height: 1.8;">
+    The intention is to build like a library. Shaped by its readers and writers, and governed by the people who choose to stay.
+  </p>
+
+  <p style="font-size: 16px; line-height: 1.8; margin-top: 24px;">
+    Warm regards,<br/>
+    Haripriya
+  </p>
 
   <p style="font-size: 12px; color: #9ca3af; margin-top: 40px; text-align: center;">
-    <a href="https://inkhouse.haripriya.org" style="color: #0D9488;">Inkhouse</a>. A home for writers
+    <a href="https://inkhouse.haripriya.org" style="color: #0D9488;">Inkhouse</a> · A home for writers
   </p>
 </div>
 `
 
 export async function POST(request: NextRequest) {
+  console.log('=== SENDING NEW NEWSLETTER: Writing Together, Deciding Together ===')
   try {
     // Verify super admin
     const user = await getAuthUser()
@@ -126,8 +135,8 @@ export async function POST(request: NextRequest) {
       const result = await sendNewsletter({
         to: user.email,
         name: user.display_name,
-        subject: 'Happy New Year from Inkhouse 🎉',
-        html: NEW_YEAR_2025_HTML,
+        subject: 'Writing Together, Deciding Together',
+        html: NEWSLETTER_HTML,
       })
 
       if (result.success) {
