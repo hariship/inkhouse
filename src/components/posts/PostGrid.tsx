@@ -175,8 +175,8 @@ export function PostGrid({
     const readAt = isAuthenticated ? readStatuses[post.id] : null
     const isRead = !!readAt
     return (
-    <Link href={`/post/${post.normalized_title}`} className="block">
-    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col relative group/card cursor-pointer">
+    <Link href={`/post/${post.normalized_title}`} className="block h-full">
+    <article className="bg-[var(--color-bg-card)] rounded-lg shadow-[var(--shadow-light)] overflow-hidden hover:shadow-[var(--shadow-medium)] transition-shadow flex flex-col relative group/card cursor-pointer h-full">
       {/* Read indicator tooltip */}
       {isRead && readAt && formatReadDate(readAt) && (
         <div className="absolute top-2 left-2 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity pointer-events-none">
@@ -185,7 +185,7 @@ export function PostGrid({
           </span>
         </div>
       )}
-      <div className={isRead ? 'opacity-60' : ''}>
+      <div className={`flex flex-col flex-1 ${isRead ? 'opacity-60' : ''}`}>
         {post.image_url && (
           <div className="relative h-48 w-full">
             <Image
