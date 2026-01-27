@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "src/app/api/posts/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/posts/[id]/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

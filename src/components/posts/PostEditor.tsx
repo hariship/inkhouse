@@ -79,7 +79,8 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
   }, [getQuill])
 
 
-  // Quill modules - custom handlers for HR and Draw
+
+  // Quill modules - custom handlers for HR, Draw, and Image (uploads to Cloudinary)
   const quillModules = useMemo(() => ({
     toolbar: {
       container: [
@@ -106,6 +107,50 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           const event = new CustomEvent('openDrawModal')
           window.dispatchEvent(event)
         },
+        // Custom image handler - uploads to Cloudinary instead of embedding base64
+        image: function(this: any) {
+          const quill = this.quill
+          const input = document.createElement('input')
+          input.setAttribute('type', 'file')
+          input.setAttribute('accept', 'image/*')
+          input.click()
+
+          input.onchange = async () => {
+            const file = input.files?.[0]
+            if (!file) return
+
+            const range = quill.getSelection(true)
+
+            // Show loading placeholder
+            quill.insertText(range.index, 'Uploading image...', { italic: true })
+            const placeholderLength = 'Uploading image...'.length
+
+            try {
+              const formData = new FormData()
+              formData.append('file', file)
+
+              const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData,
+              })
+
+              const data = await response.json()
+
+              // Remove placeholder
+              quill.deleteText(range.index, placeholderLength)
+
+              if (data.success && data.url) {
+                quill.insertEmbed(range.index, 'image', data.url)
+                quill.setSelection(range.index + 1)
+              } else {
+                alert('Failed to upload image')
+              }
+            } catch {
+              quill.deleteText(range.index, placeholderLength)
+              alert('Failed to upload image')
+            }
+          }
+        },
       },
     },
   }), [])
@@ -123,10 +168,39 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
   const [isPreview, setIsPreview] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [draftLoaded, setDraftLoaded] = useState(false)
 
-  // Load draft from localStorage (only for new posts)
+  // Load draft from server first, then localStorage as fallback (only for new posts)
   useEffect(() => {
-    if (!post) {
+    if (post || draftLoaded) return
+
+    const loadDraft = async () => {
+      try {
+        // Try server first
+        const response = await fetch('/api/drafts')
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          setFormData({
+            title: result.data.title || '',
+            description: result.data.description || '',
+            content: result.data.content || '',
+            category: result.data.category || '',
+            image_url: result.data.image_url || '',
+            status: 'draft',
+            featured: result.data.featured || false,
+            allow_comments: result.data.allow_comments !== false,
+          })
+          setLastSaved(new Date(result.data.updated_at))
+          setDraftLoaded(true)
+          return
+        }
+      } catch {
+        // Server draft failed, try localStorage
+      }
+
+      // Fallback to localStorage
       const saved = localStorage.getItem(DRAFT_KEY)
       if (saved) {
         try {
@@ -137,8 +211,29 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           // Ignore parse errors
         }
       }
+      setDraftLoaded(true)
     }
-  }, [post])
+
+    loadDraft()
+  }, [post, draftLoaded])
+
+  // Save draft to server (debounced)
+  const saveDraftToServer = useCallback(async (data: PostFormData) => {
+    if (!data.title && !data.content) return
+
+    setIsSavingDraft(true)
+    try {
+      await fetch('/api/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+    } catch {
+      // Silently fail - localStorage is the backup
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }, [])
 
   // Auto-save draft every 30 seconds (only for new posts)
   useEffect(() => {
@@ -146,6 +241,7 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
 
     const interval = setInterval(() => {
       if (formData.title || formData.content) {
+        // Save to localStorage (immediate)
         localStorage.setItem(
           DRAFT_KEY,
           JSON.stringify({
@@ -153,12 +249,14 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
             timestamp: new Date().toISOString(),
           })
         )
+        // Save to server (async)
+        saveDraftToServer(formData)
         setLastSaved(new Date())
       }
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [formData, post])
+  }, [formData, post, saveDraftToServer])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -209,11 +307,18 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
     // Clear draft after successful save (for new posts)
     if (!post) {
       localStorage.removeItem(DRAFT_KEY)
+      // Clear server draft
+      try {
+        await fetch('/api/drafts', { method: 'DELETE' })
+      } catch {
+        // Ignore errors
+      }
     }
   }
 
-  const saveDraft = useCallback(() => {
+  const saveDraft = useCallback(async () => {
     if (formData.title || formData.content) {
+      // Save to localStorage
       localStorage.setItem(
         DRAFT_KEY,
         JSON.stringify({
@@ -221,9 +326,11 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           timestamp: new Date().toISOString(),
         })
       )
+      // Save to server
+      await saveDraftToServer(formData)
       setLastSaved(new Date())
     }
-  }, [formData])
+  }, [formData, saveDraftToServer])
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -233,9 +340,9 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           {post ? (isDeskPost ? 'Edit Desk Post' : 'Edit Post') : (isDeskPost ? 'New Desk Post' : 'New Post')}
         </h1>
         <div className="flex items-center space-x-2">
-          {lastSaved && !post && (
+          {!post && (
             <span className="text-xs text-gray-500 hidden sm:inline">
-              Saved {lastSaved.toLocaleTimeString()}
+              {isSavingDraft ? 'Saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : ''}
             </span>
           )}
           <button
