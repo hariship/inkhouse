@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Post, PostFormData } from '@/types'
 import { Save, Eye, Upload, X, Pencil } from 'lucide-react'
@@ -44,12 +44,23 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
   const { theme } = useTheme()
   const [isDrawingOpen, setIsDrawingOpen] = useState(false)
   const [isContentDrawingOpen, setIsContentDrawingOpen] = useState(false)
+  const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false)
+  const [quoteText, setQuoteText] = useState('')
+  const [quoteAuthor, setQuoteAuthor] = useState('')
+  const quillRawRef = useRef<any>(null)
 
   // Listen for draw modal event from Quill toolbar
   useEffect(() => {
     const handleOpenDraw = () => setIsContentDrawingOpen(true)
     window.addEventListener('openDrawModal', handleOpenDraw)
     return () => window.removeEventListener('openDrawModal', handleOpenDraw)
+  }, [])
+
+  // Listen for quote dialog event from Quill toolbar
+  useEffect(() => {
+    const handleOpenQuote = () => setIsQuoteDialogOpen(true)
+    window.addEventListener('openQuoteDialog', handleOpenQuote)
+    return () => window.removeEventListener('openQuoteDialog', handleOpenQuote)
   }, [])
 
   // Helper to get Quill editor instance
@@ -89,7 +100,7 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['blockquote', 'code-block'],
         ['link', 'image'],
-        ['divider', 'draw'],
+        ['divider', 'draw', 'quote'],
         ['clean'],
       ],
       handlers: {
@@ -105,6 +116,11 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           // This will be handled by opening the modal
           // We need to trigger the state change from outside
           const event = new CustomEvent('openDrawModal')
+          window.dispatchEvent(event)
+        },
+        quote: function(this: any) {
+          quillRawRef.current = this.quill
+          const event = new CustomEvent('openQuoteDialog')
           window.dispatchEvent(event)
         },
         // Custom image handler - uploads to Cloudinary instead of embedding base64
@@ -331,6 +347,32 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
       setLastSaved(new Date())
     }
   }, [formData, saveDraftToServer])
+
+  const handleQuoteInsert = useCallback(() => {
+    if (!quoteText.trim()) return
+
+    const escapeHtml = (text: string) =>
+      text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+    const escapedQuote = escapeHtml(quoteText.trim())
+    const escapedAuthor = quoteAuthor.trim() ? escapeHtml(quoteAuthor.trim()) : ''
+
+    const html = escapedAuthor
+      ? `<blockquote><p>${escapedQuote}</p><p>\u2014 ${escapedAuthor}</p></blockquote>`
+      : `<blockquote><p>${escapedQuote}</p></blockquote>`
+
+    const quill = quillRawRef.current
+    if (quill) {
+      const range = quill.getSelection() || { index: quill.getLength() - 1 }
+      quill.clipboard.dangerouslyPasteHTML(range.index, html)
+    } else {
+      setFormData(prev => ({ ...prev, content: prev.content + html }))
+    }
+
+    setQuoteText('')
+    setQuoteAuthor('')
+    setIsQuoteDialogOpen(false)
+  }, [quoteText, quoteAuthor])
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -580,6 +622,68 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
         onInsert={handleInsertContentDrawing}
         theme={theme}
       />
+
+      {/* Quote Dialog */}
+      {isQuoteDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--color-bg-card)] rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-[var(--color-border-light)] flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Insert Quote</h3>
+              <button
+                onClick={() => setIsQuoteDialogOpen(false)}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                  Quote *
+                </label>
+                <textarea
+                  value={quoteText}
+                  onChange={(e) => setQuoteText(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-[var(--color-border-medium)] rounded-md text-sm text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)]"
+                  placeholder="Enter the quote..."
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                  Attribution
+                </label>
+                <input
+                  type="text"
+                  value={quoteAuthor}
+                  onChange={(e) => setQuoteAuthor(e.target.value)}
+                  className="w-full px-3 py-2 border border-[var(--color-border-medium)] rounded-md text-sm text-[var(--color-text-primary)] bg-[var(--color-bg-card)] focus:ring-[var(--color-link)] focus:border-[var(--color-link)]"
+                  placeholder="Author name (optional)"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleQuoteInsert() }}
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsQuoteDialogOpen(false)}
+                  className="px-4 py-2 border border-[var(--color-border-medium)] rounded-md text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuoteInsert}
+                  disabled={!quoteText.trim()}
+                  className="btn-primary px-4 py-2 rounded-md text-sm disabled:opacity-50"
+                >
+                  Insert Quote
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

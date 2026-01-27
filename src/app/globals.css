@@ -223,11 +223,44 @@ input[type="checkbox"] {
 }
 
 .prose blockquote {
-  border-left: 4px solid var(--color-border-medium);
-  padding-left: 1em;
-  margin: 1em 0;
+  position: relative;
+  border-left: 3px solid var(--color-link);
+  background-color: var(--color-bg-tertiary);
+  padding: 1.5em 1.5em 1.5em 2em;
+  margin: 1.5em 0;
+  border-radius: 0 0.5rem 0.5rem 0;
   font-style: italic;
   color: var(--color-text-secondary);
+}
+
+.prose blockquote::before {
+  content: '\201C';
+  position: absolute;
+  top: -0.25em;
+  left: 0.25em;
+  font-size: 3em;
+  color: var(--color-link);
+  opacity: 0.3;
+  font-family: Georgia, serif;
+  line-height: 1;
+}
+
+.prose blockquote p:first-child {
+  margin-top: 0;
+}
+
+.prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Attribution line in blockquote (last paragraph when multiple exist) */
+.prose blockquote p:last-child:not(:first-child) {
+  font-style: normal;
+  font-size: 0.9em;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  margin-top: 0.75em;
 }
 
 .prose pre, .prose code {
@@ -267,7 +300,8 @@ input[type="checkbox"] {
 
 /* Quill custom toolbar buttons */
 .ql-toolbar .ql-divider,
-.ql-toolbar .ql-draw {
+.ql-toolbar .ql-draw,
+.ql-toolbar .ql-quote {
   width: 28px;
 }
 
@@ -281,11 +315,31 @@ input[type="checkbox"] {
   font-size: 14px;
 }
 
+.ql-toolbar .ql-quote::before {
+  content: '\201C';
+  font-size: 18px;
+  font-weight: bold;
+  font-family: Georgia, serif;
+  line-height: 24px;
+}
+
 /* HR in Quill editor */
 .ql-editor hr {
   border: none;
   border-top: 1px solid var(--color-border-medium);
   margin: 0.75em 0;
+}
+
+/* Blockquote in Quill editor */
+.ql-editor blockquote {
+  position: relative;
+  border-left: 3px solid var(--color-link);
+  background-color: var(--color-bg-tertiary);
+  padding: 1em 1em 1em 1.5em;
+  margin: 0.75em 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: italic;
+  color: var(--color-text-secondary);
 }
 
 /* Excalidraw container styles */
