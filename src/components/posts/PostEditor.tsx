@@ -37,6 +37,41 @@ interface PostEditorProps {
   isDeskPost?: boolean
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
+async function uploadFileToCloudinary(file: File): Promise<string> {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('File size exceeds 10MB limit')
+  }
+
+  // Get signed upload params from our server
+  const sigRes = await fetch('/api/upload-signature', { method: 'POST' })
+  const sigData = await sigRes.json()
+  if (!sigData.success) {
+    throw new Error(sigData.error || 'Failed to get upload signature')
+  }
+
+  // Upload directly to Cloudinary
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('signature', sigData.signature)
+  formData.append('timestamp', String(sigData.timestamp))
+  formData.append('api_key', sigData.apiKey)
+  formData.append('folder', 'inkhouse')
+
+  const uploadRes = await fetch(
+    `https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`,
+    { method: 'POST', body: formData }
+  )
+
+  if (!uploadRes.ok) {
+    throw new Error('Upload to Cloudinary failed')
+  }
+
+  const uploadData = await uploadRes.json()
+  return uploadData.secure_url
+}
+
 const DRAFT_KEY = 'inkhouse-draft'
 
 export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorProps) {
@@ -123,7 +158,7 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
           const event = new CustomEvent('openQuoteDialog')
           window.dispatchEvent(event)
         },
-        // Custom image handler - uploads to Cloudinary instead of embedding base64
+        // Custom image handler - uploads directly to Cloudinary
         image: function(this: any) {
           const quill = this.quill
           const input = document.createElement('input')
@@ -142,28 +177,16 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
             const placeholderLength = 'Uploading image...'.length
 
             try {
-              const formData = new FormData()
-              formData.append('file', file)
-
-              const response = await fetch('/api/upload-image', {
-                method: 'POST',
-                body: formData,
-              })
-
-              const data = await response.json()
+              const url = await uploadFileToCloudinary(file)
 
               // Remove placeholder
               quill.deleteText(range.index, placeholderLength)
 
-              if (data.success && data.url) {
-                quill.insertEmbed(range.index, 'image', data.url)
-                quill.setSelection(range.index + 1)
-              } else {
-                alert('Failed to upload image')
-              }
-            } catch {
+              quill.insertEmbed(range.index, 'image', url)
+              quill.setSelection(range.index + 1)
+            } catch (err) {
               quill.deleteText(range.index, placeholderLength)
-              alert('Failed to upload image')
+              alert(err instanceof Error ? err.message : 'Failed to upload image')
             }
           }
         },
@@ -296,22 +319,10 @@ export function PostEditor({ post, onSave, isLoading, isDeskPost }: PostEditorPr
 
     setIsUploading(true)
     try {
-      const formDataToSend = new FormData()
-      formDataToSend.append('file', file)
-
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
-        body: formDataToSend,
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setFormData((prev) => ({ ...prev, image_url: data.url }))
-      } else {
-        alert('Failed to upload image')
-      }
-    } catch {
-      alert('Failed to upload image')
+      const url = await uploadFileToCloudinary(file)
+      setFormData((prev) => ({ ...prev, image_url: url }))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upload image')
     } finally {
       setIsUploading(false)
     }

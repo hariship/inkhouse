@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { getAuthUser, isSuperAdmin, isAdmin } from '@/lib/auth'
 import { sendNewPostNotification } from '@/lib/email'
+import { deleteImage, extractPublicId, extractCloudinaryUrls } from '@/lib/cloudinary'
 
 // GET - Get single post
 export async function GET(
@@ -241,10 +242,10 @@ export async function DELETE(
       )
     }
 
-    // Get existing post
+    // Get existing post (include image_url and content for cleanup)
     const { data: existingPost, error: fetchError } = await supabase
       .from('posts')
-      .select('author_id, type')
+      .select('author_id, type, image_url, content')
       .eq('id', id)
       .single()
 
@@ -276,6 +277,13 @@ export async function DELETE(
       )
     }
 
+    // Collect all Cloudinary URLs from the post
+    const cloudinaryUrls: string[] = []
+    if (existingPost.image_url && existingPost.image_url.includes('res.cloudinary.com')) {
+      cloudinaryUrls.push(existingPost.image_url)
+    }
+    cloudinaryUrls.push(...extractCloudinaryUrls(existingPost.content || ''))
+
     const { error: deleteError } = await supabase
       .from('posts')
       .delete()
@@ -287,6 +295,17 @@ export async function DELETE(
         { success: false, error: 'Failed to delete post' },
         { status: 500 }
       )
+    }
+
+    // Clean up Cloudinary images (best-effort, don't fail the request)
+    const uniqueUrls = [...new Set(cloudinaryUrls)]
+    for (const url of uniqueUrls) {
+      const publicId = extractPublicId(url)
+      if (publicId) {
+        deleteImage(publicId).catch(err =>
+          console.error(`Failed to delete Cloudinary image ${publicId}:`, err)
+        )
+      }
     }
 
     return NextResponse.json({
