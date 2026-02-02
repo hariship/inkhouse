@@ -278,3 +278,85 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- PERFORMANCE: Writer post stats RPC function
+-- Returns per-post counts via GROUP BY (server-side)
+-- instead of downloading all rows to the client.
+-- =====================================================
+CREATE OR REPLACE FUNCTION get_writer_post_stats(author_uuid UUID)
+RETURNS TABLE (
+    post_id INTEGER,
+    views BIGINT,
+    reads BIGINT,
+    box_additions BIGINT,
+    bookmarks BIGINT,
+    comments BIGINT,
+    critiques BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id AS post_id,
+        COALESCE(pv.cnt, 0) AS views,
+        COALESCE(pr.cnt, 0) AS reads,
+        COALESCE(rl.cnt, 0) AS box_additions,
+        COALESCE(bk.cnt, 0) AS bookmarks,
+        COALESCE(cm.cnt, 0) AS comments,
+        COALESCE(cr.cnt, 0) AS critiques
+    FROM posts p
+    LEFT JOIN (
+        SELECT page_views.post_id AS pid, COUNT(*) AS cnt
+        FROM page_views
+        WHERE page_views.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+        GROUP BY page_views.post_id
+    ) pv ON pv.pid = p.id
+    LEFT JOIN (
+        SELECT post_reads.post_id AS pid, COUNT(*) AS cnt
+        FROM post_reads
+        WHERE post_reads.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+        GROUP BY post_reads.post_id
+    ) pr ON pr.pid = p.id
+    LEFT JOIN (
+        SELECT reading_list_items.post_id AS pid, COUNT(*) AS cnt
+        FROM reading_list_items
+        WHERE reading_list_items.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+        GROUP BY reading_list_items.post_id
+    ) rl ON rl.pid = p.id
+    LEFT JOIN (
+        SELECT bookmarks.post_id AS pid, COUNT(*) AS cnt
+        FROM bookmarks
+        WHERE bookmarks.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+        GROUP BY bookmarks.post_id
+    ) bk ON bk.pid = p.id
+    LEFT JOIN (
+        SELECT comments.post_id AS pid, COUNT(*) AS cnt
+        FROM comments
+        WHERE comments.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+          AND comments.status = 'approved'
+        GROUP BY comments.post_id
+    ) cm ON cm.pid = p.id
+    LEFT JOIN (
+        SELECT critiques.post_id AS pid, COUNT(*) AS cnt
+        FROM critiques
+        WHERE critiques.post_id IN (SELECT id FROM posts WHERE posts.author_id = author_uuid AND posts.status = 'published')
+          AND critiques.status = 'active'
+        GROUP BY critiques.post_id
+    ) cr ON cr.pid = p.id
+    WHERE p.author_id = author_uuid AND p.status = 'published';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- PERFORMANCE: Trigram indexes for ilike search
+-- =====================================================
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_posts_title_trgm ON posts USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_posts_description_trgm ON posts USING gin (description gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_posts_category_trgm ON posts USING gin (category gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_users_display_name_trgm ON users USING gin (display_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_users_username_trgm ON users USING gin (username gin_trgm_ops);
+
+-- Composite index for the main listing query (status + pub_date DESC)
+CREATE INDEX IF NOT EXISTS idx_posts_status_pub_date ON posts(status, pub_date DESC);

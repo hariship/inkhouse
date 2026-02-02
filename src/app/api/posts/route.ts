@@ -44,23 +44,26 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // First, find authors matching the search term
+      // Find matching authors (will use GIN trigram index if available)
       const { data: matchingAuthors } = await supabase
         .from('users')
         .select('id')
         .or(`display_name.ilike.%${search}%,username.ilike.%${search}%`)
 
-      const authorIds = matchingAuthors?.map(a => a.id) || []
+      // Build a single OR filter for title, description, category, and matching author IDs
+      const filters = [
+        `title.ilike.%${search}%`,
+        `description.ilike.%${search}%`,
+        `category.ilike.%${search}%`,
+      ]
 
-      // Build search filter: title, description, category, or matching authors
-      let searchFilter = `title.ilike.%${search}%,description.ilike.%${search}%,category.ilike.%${search}%`
-
-      if (authorIds.length > 0) {
-        const authorFilters = authorIds.map(id => `author_id.eq.${id}`).join(',')
-        searchFilter += `,${authorFilters}`
+      if (matchingAuthors && matchingAuthors.length > 0) {
+        for (const a of matchingAuthors) {
+          filters.push(`author_id.eq.${a.id}`)
+        }
       }
 
-      query = query.or(searchFilter)
+      query = query.or(filters.join(','))
     }
 
     // Apply type filter with fallback for missing column

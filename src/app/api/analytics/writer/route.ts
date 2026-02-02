@@ -54,75 +54,94 @@ export async function GET() {
 
     const postIds = posts.map((p) => p.id)
 
-    // Fetch all metrics in parallel
-    const [
-      { data: viewsData },
-      { data: readsData },
-      { data: boxData },
-      { data: bookmarksData },
-      { data: commentsData },
-      { data: critiquesData },
-    ] = await Promise.all([
-      // Page views per post
-      supabase
-        .from('page_views')
-        .select('post_id')
-        .in('post_id', postIds),
-      // Reads per post
-      supabase
-        .from('post_reads')
-        .select('post_id')
-        .in('post_id', postIds),
-      // Box additions per post
-      supabase
-        .from('reading_list_items')
-        .select('post_id')
-        .in('post_id', postIds),
-      // Bookmarks per post
-      supabase
-        .from('bookmarks')
-        .select('post_id')
-        .in('post_id', postIds),
-      // Comments per post
-      supabase
-        .from('comments')
-        .select('post_id')
-        .in('post_id', postIds)
-        .eq('status', 'approved'),
-      // Critiques per post
-      supabase
-        .from('critiques')
-        .select('post_id')
-        .in('post_id', postIds)
-        .eq('status', 'active'),
-    ])
+    // Try RPC for server-side counting (single query instead of 6)
+    let postAnalytics: PostAnalytics[]
+    let analytics: WriterAnalytics
 
-    // Count per post
-    const countByPost = (data: { post_id: number }[] | null, postId: number) =>
-      data?.filter((d) => d.post_id === postId).length || 0
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_writer_post_stats', { author_uuid: authUser.userId })
 
-    const postAnalytics: PostAnalytics[] = posts.map((post) => ({
-      post_id: post.id,
-      title: post.title,
-      normalized_title: post.normalized_title,
-      views: countByPost(viewsData, post.id),
-      reads: countByPost(readsData, post.id),
-      box_additions: countByPost(boxData, post.id),
-      bookmarks: countByPost(bookmarksData, post.id),
-      comments: countByPost(commentsData, post.id),
-      critiques: countByPost(critiquesData, post.id),
-    }))
+    if (!rpcError && rpcData) {
+      // RPC succeeded — build analytics from server-side counts
+      const statsMap: Record<number, {
+        views: number; reads: number; box_additions: number;
+        bookmarks: number; comments: number; critiques: number
+      }> = {}
+      for (const row of rpcData as Array<{
+        post_id: number; views: number; reads: number;
+        box_additions: number; bookmarks: number; comments: number; critiques: number
+      }>) {
+        statsMap[row.post_id] = row
+      }
 
-    // Calculate totals
-    const analytics: WriterAnalytics = {
-      total_posts: posts.length,
-      total_views: viewsData?.length || 0,
-      total_reads: readsData?.length || 0,
-      total_box_additions: boxData?.length || 0,
-      total_bookmarks: bookmarksData?.length || 0,
-      total_comments: commentsData?.length || 0,
-      total_critiques: critiquesData?.length || 0,
-      posts: postAnalytics,
+      postAnalytics = posts.map((post) => {
+        const s = statsMap[post.id]
+        return {
+          post_id: post.id,
+          title: post.title,
+          normalized_title: post.normalized_title,
+          views: s?.views || 0,
+          reads: s?.reads || 0,
+          box_additions: s?.box_additions || 0,
+          bookmarks: s?.bookmarks || 0,
+          comments: s?.comments || 0,
+          critiques: s?.critiques || 0,
+        }
+      })
+
+      analytics = {
+        total_posts: posts.length,
+        total_views: postAnalytics.reduce((sum, p) => sum + p.views, 0),
+        total_reads: postAnalytics.reduce((sum, p) => sum + p.reads, 0),
+        total_box_additions: postAnalytics.reduce((sum, p) => sum + p.box_additions, 0),
+        total_bookmarks: postAnalytics.reduce((sum, p) => sum + p.bookmarks, 0),
+        total_comments: postAnalytics.reduce((sum, p) => sum + p.comments, 0),
+        total_critiques: postAnalytics.reduce((sum, p) => sum + p.critiques, 0),
+        posts: postAnalytics,
+      }
+    } else {
+      // Fallback: fetch counts via individual queries (for backwards compat before RPC is deployed)
+      const [
+        { data: viewsData },
+        { data: readsData },
+        { data: boxData },
+        { data: bookmarksData },
+        { data: commentsData },
+        { data: critiquesData },
+      ] = await Promise.all([
+        supabase.from('page_views').select('post_id').in('post_id', postIds),
+        supabase.from('post_reads').select('post_id').in('post_id', postIds),
+        supabase.from('reading_list_items').select('post_id').in('post_id', postIds),
+        supabase.from('bookmarks').select('post_id').in('post_id', postIds),
+        supabase.from('comments').select('post_id').in('post_id', postIds).eq('status', 'approved'),
+        supabase.from('critiques').select('post_id').in('post_id', postIds).eq('status', 'active'),
+      ])
+
+      const countByPost = (data: { post_id: number }[] | null, postId: number) =>
+        data?.filter((d) => d.post_id === postId).length || 0
+
+      postAnalytics = posts.map((post) => ({
+        post_id: post.id,
+        title: post.title,
+        normalized_title: post.normalized_title,
+        views: countByPost(viewsData, post.id),
+        reads: countByPost(readsData, post.id),
+        box_additions: countByPost(boxData, post.id),
+        bookmarks: countByPost(bookmarksData, post.id),
+        comments: countByPost(commentsData, post.id),
+        critiques: countByPost(critiquesData, post.id),
+      }))
+
+      analytics = {
+        total_posts: posts.length,
+        total_views: viewsData?.length || 0,
+        total_reads: readsData?.length || 0,
+        total_box_additions: boxData?.length || 0,
+        total_bookmarks: bookmarksData?.length || 0,
+        total_comments: commentsData?.length || 0,
+        total_critiques: critiquesData?.length || 0,
+        posts: postAnalytics,
+      }
     }
 
     return NextResponse.json({ success: true, data: analytics })

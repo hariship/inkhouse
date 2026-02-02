@@ -34,25 +34,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Set up global fetch interceptor for 401 responses
+  const isRefreshing = useRef(false)
+  const refreshPromise = useRef<Promise<boolean> | null>(null)
+
   useEffect(() => {
     const originalFetch = window.fetch
 
     window.fetch = async (...args) => {
+      // Skip interception entirely for auth endpoints
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
+      if (url.includes('/api/auth/')) {
+        return originalFetch(...args)
+      }
+
       const response = await originalFetch(...args)
 
-      // Check if we got a 401 and it's not the auth endpoints
-      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
-      const isAuthEndpoint = url.includes('/api/auth/')
-
-      if (response.status === 401 && !isAuthEndpoint && user) {
-        // Try to refresh the token first
-        const refreshResponse = await originalFetch('/api/auth/me')
-        if (!refreshResponse.ok) {
-          // Refresh failed, session truly expired
-          handleSessionExpiry()
+      if (response.status === 401 && user) {
+        // Deduplicate: if a refresh is already in flight, wait for it
+        if (!isRefreshing.current) {
+          isRefreshing.current = true
+          refreshPromise.current = (async () => {
+            try {
+              // Use originalFetch to avoid recursion through the interceptor
+              const refreshResponse = await originalFetch('/api/auth/me')
+              if (!refreshResponse.ok) {
+                handleSessionExpiry()
+                return false
+              }
+              return true
+            } finally {
+              isRefreshing.current = false
+              refreshPromise.current = null
+            }
+          })()
         }
-        // If refresh succeeded, the original request already failed
-        // User should retry their action
+        await refreshPromise.current
       }
 
       return response

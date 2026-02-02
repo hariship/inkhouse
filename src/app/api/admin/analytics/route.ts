@@ -56,6 +56,7 @@ export async function GET() {
       supabase
         .from('posts')
         .select(`
+          id,
           author_id,
           author:users!posts_author_id_fkey(id, username, display_name, avatar_url)
         `)
@@ -72,32 +73,54 @@ export async function GET() {
       authorCounts[authorId].count++
     })
 
-    // Get view counts for each author's posts
-    const topAuthors = await Promise.all(
-      Object.entries(authorCounts)
-        .sort(([, a], [, b]) => b.count - a.count)
-        .slice(0, 10)
-        .map(async ([authorId, data]) => {
-          // Get total views for this author's posts
-          const { data: authorPosts } = await supabase
-            .from('posts')
-            .select('id')
-            .eq('author_id', authorId)
-            .eq('status', 'published')
+    // Build top 10 authors and collect all their post IDs from data we already have
+    const top10Entries = Object.entries(authorCounts)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 10)
 
-          const postIds = authorPosts?.map((p) => p.id) || []
-          const { count: viewCount } = await supabase
-            .from('page_views')
-            .select('*', { count: 'exact', head: true })
-            .in('post_id', postIds)
+    // Build a map of author → post IDs from topAuthorsData (already fetched)
+    const authorPostIds: Record<string, number[]> = {}
+    topAuthorsData?.forEach((post) => {
+      const authorId = post.author_id
+      if (!authorPostIds[authorId]) {
+        authorPostIds[authorId] = []
+      }
+      authorPostIds[authorId].push(post.id)
+    })
 
-          return {
-            author: data.author,
-            post_count: data.count,
-            total_views: viewCount || 0,
-          }
-        })
+    // Collect all post IDs from top 10 authors into a single array
+    const allTopAuthorPostIds = top10Entries.flatMap(
+      ([authorId]) => authorPostIds[authorId] || []
     )
+
+    // Single query: get view counts for all top authors' posts at once
+    const viewCountsByAuthor: Record<string, number> = {}
+    if (allTopAuthorPostIds.length > 0) {
+      const { data: viewRows } = await supabase
+        .from('page_views')
+        .select('post_id')
+        .in('post_id', allTopAuthorPostIds)
+
+      // Group view counts by author
+      const postToAuthor: Record<number, string> = {}
+      for (const [authorId, postIds] of Object.entries(authorPostIds)) {
+        for (const postId of postIds) {
+          postToAuthor[postId] = authorId
+        }
+      }
+      viewRows?.forEach((row) => {
+        const aid = postToAuthor[row.post_id]
+        if (aid) {
+          viewCountsByAuthor[aid] = (viewCountsByAuthor[aid] || 0) + 1
+        }
+      })
+    }
+
+    const topAuthors = top10Entries.map(([authorId, data]) => ({
+      author: data.author,
+      post_count: data.count,
+      total_views: viewCountsByAuthor[authorId] || 0,
+    }))
 
     const analytics: AdminAnalytics = {
       total_users: totalUsers || 0,
