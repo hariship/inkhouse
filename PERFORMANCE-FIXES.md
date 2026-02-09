@@ -13,14 +13,14 @@
 
 ---
 
-### 2. Writer Analytics — Server-Side Counting via RPC
+### 2. Writer Analytics — Count-Only Queries
 **File:** `src/app/api/analytics/writer/route.ts`
 
 **Before:** 6 parallel queries downloaded ALL rows from `page_views`, `post_reads`, `reading_list_items`, `bookmarks`, `comments`, and `critiques` just to `.length` them in JS. A writer with 10,000 views would download 10,000 rows.
 
-**After:** Calls `get_writer_post_stats` RPC function that does `GROUP BY` counting in PostgreSQL and returns only per-post counts. Falls back to the original 6-query approach if the RPC function doesn't exist yet.
+**After:** Uses Supabase `{ count: 'exact', head: true }` option which returns only the count without downloading any rows. Queries run in parallel per post.
 
-**Impact:** 6 queries returning all rows reduced to 1 query returning counts only. Massive bandwidth reduction.
+**Impact:** Zero row data transferred — only counts. A writer with 10,000 views now gets a single integer instead of 10,000 rows.
 
 ---
 
@@ -58,25 +58,23 @@ Added:
 
 ---
 
-## Pending (must be done manually)
+## Pending (optional, for further optimization)
 
-### Deploy SQL to Supabase
-The SQL changes in `scripts/setup-supabase.sql` need to be run in the Supabase SQL Editor:
+### Deploy SQL to Supabase (optional)
+These SQL changes in `scripts/setup-supabase.sql` are optional optimizations:
 
-1. **RPC function** — Run the `CREATE OR REPLACE FUNCTION get_writer_post_stats(...)` block. Until this is deployed, writer analytics will use the fallback (original 6-query approach).
+1. **pg_trgm extension** — Run `CREATE EXTENSION IF NOT EXISTS pg_trgm;`. This enables trigram indexes.
 
-2. **pg_trgm extension** — Run `CREATE EXTENSION IF NOT EXISTS pg_trgm;`. This enables trigram indexes.
+2. **Trigram indexes** — Run the 5 `CREATE INDEX ... USING gin ... gin_trgm_ops` statements. Until deployed, `ilike` queries will still work but do sequential scans.
 
-3. **Trigram indexes** — Run the 5 `CREATE INDEX ... USING gin ... gin_trgm_ops` statements. Until deployed, `ilike` queries will still work but do sequential scans.
-
-4. **Composite index** — Run `CREATE INDEX IF NOT EXISTS idx_posts_status_pub_date ON posts(status, pub_date DESC);`. Speeds up the main posts listing query.
+3. **Composite index** — Run `CREATE INDEX IF NOT EXISTS idx_posts_status_pub_date ON posts(status, pub_date DESC);`. Speeds up the main posts listing query.
 
 ### Testing Needed
 - [ ] Log in as admin, visit `/admin/analytics` — verify top authors display correctly with view counts
 - [ ] Log in as writer, visit `/dashboard/insights` — verify per-post stats are correct
 - [ ] Test search on homepage — try searching by post title, category, and author name
 - [ ] Check browser Network tab on 401 — verify only one `/api/auth/me` refresh call fires (not multiple)
-- [ ] After deploying RPC: verify writer analytics Network tab shows single RPC call instead of 6 queries
+- [ ] Verify writer analytics Network tab shows count-only queries (no large payloads)
 
 ### Future Improvements (not in scope)
 - Admin analytics: the `page_views` query for top authors still downloads all view rows to count them. Could use `count: 'exact', head: true` with individual per-author queries batched via RPC, or add a materialized view.
