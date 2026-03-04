@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { apiKeys } from '@/lib/db/schema'
+import { eq, and, count, desc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 import { generateApiKey } from '@/lib/api-auth'
-import { ApiKey, ApiKeyWithSecret, CreateApiKeyRequest } from '@/types'
+import { ApiKeyWithSecret, CreateApiKeyRequest } from '@/types'
 
 // GET - List user's API keys
 export async function GET() {
@@ -15,31 +17,25 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: keys, error } = await supabase
-      .from('api_keys')
-      .select('id, user_id, name, key_prefix, last_used_at, expires_at, status, created_at, updated_at')
-      .eq('user_id', authUser.userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Fetch API keys error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch API keys' },
-        { status: 500 }
-      )
-    }
+    const keys = await db
+      .select({
+        id: apiKeys.id,
+        user_id: apiKeys.user_id,
+        name: apiKeys.name,
+        key_prefix: apiKeys.key_prefix,
+        last_used_at: apiKeys.last_used_at,
+        expires_at: apiKeys.expires_at,
+        status: apiKeys.status,
+        created_at: apiKeys.created_at,
+        updated_at: apiKeys.updated_at,
+      })
+      .from(apiKeys)
+      .where(eq(apiKeys.user_id, authUser.userId))
+      .orderBy(desc(apiKeys.created_at))
 
     return NextResponse.json({
       success: true,
-      data: keys as ApiKey[],
+      data: keys,
     })
   } catch (error) {
     console.error('Fetch API keys error:', error)
@@ -78,22 +74,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Check key limit (max 5 keys per user)
-    const { count } = await supabase
-      .from('api_keys')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', authUser.userId)
-      .eq('status', 'active')
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(apiKeys)
+      .where(and(eq(apiKeys.user_id, authUser.userId), eq(apiKeys.status, 'active')))
 
-    if (count !== null && count >= 5) {
+    if (total >= 5) {
       return NextResponse.json(
         { success: false, error: 'Maximum of 5 active API keys allowed' },
         { status: 400 }
@@ -104,33 +91,33 @@ export async function POST(request: NextRequest) {
     const { key, hash, prefix } = generateApiKey()
 
     // Calculate expiration
-    let expiresAt: string | null = null
+    let expiresAt: Date | null = null
     if (expires_in_days && expires_in_days > 0) {
-      const expDate = new Date()
-      expDate.setDate(expDate.getDate() + expires_in_days)
-      expiresAt = expDate.toISOString()
+      expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + expires_in_days)
     }
 
     // Insert key
-    const { data: apiKey, error } = await supabase
-      .from('api_keys')
-      .insert({
+    const [apiKey] = await db
+      .insert(apiKeys)
+      .values({
         user_id: authUser.userId,
         name: name.trim(),
         key_hash: hash,
         key_prefix: prefix,
         expires_at: expiresAt,
       })
-      .select('id, user_id, name, key_prefix, last_used_at, expires_at, status, created_at, updated_at')
-      .single()
-
-    if (error) {
-      console.error('Create API key error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create API key' },
-        { status: 500 }
-      )
-    }
+      .returning({
+        id: apiKeys.id,
+        user_id: apiKeys.user_id,
+        name: apiKeys.name,
+        key_prefix: apiKeys.key_prefix,
+        last_used_at: apiKeys.last_used_at,
+        expires_at: apiKeys.expires_at,
+        status: apiKeys.status,
+        created_at: apiKeys.created_at,
+        updated_at: apiKeys.updated_at,
+      })
 
     // Return key with secret (only time it's shown)
     const keyWithSecret: ApiKeyWithSecret = {

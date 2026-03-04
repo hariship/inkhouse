@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, users } from '@/lib/db/schema'
+import { eq, and, or, ilike, desc, count, isNull } from 'drizzle-orm'
 import { getAuthUser, isSuperAdmin } from '@/lib/auth'
 import { sendNewPostNotification } from '@/lib/email'
 
@@ -8,115 +10,105 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10'))) // Max 50 per page
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')))
     const category = searchParams.get('category')
     const author = searchParams.get('author')
     const search = searchParams.get('search')?.trim()
-    const type = searchParams.get('type') || 'post' // Default to 'post', exclude 'desk'
+    const type = searchParams.get('type') || 'post'
     const offset = (page - 1) * limit
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
-        message: 'Database not configured'
-      })
-    }
-
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
-      `, { count: 'exact' })
-      .eq('status', 'published')
-      .order('pub_date', { ascending: false })
+    // Build conditions
+    const conditions = [eq(posts.status, 'published')]
 
     if (category) {
-      query = query.eq('category', category)
+      conditions.push(eq(posts.category, category))
     }
 
     if (author) {
-      query = query.eq('author_id', author)
+      conditions.push(eq(posts.author_id, author))
     }
 
-    if (search) {
-      // Find matching authors (will use GIN trigram index if available)
-      const { data: matchingAuthors } = await supabase
-        .from('users')
-        .select('id')
-        .or(`display_name.ilike.%${search}%,username.ilike.%${search}%`)
+    if (type === 'desk') {
+      conditions.push(eq(posts.type, 'desk'))
+    } else {
+      conditions.push(or(eq(posts.type, 'post'), isNull(posts.type))!)
+    }
 
-      // Build a single OR filter for title, description, category, and matching author IDs
-      const filters = [
-        `title.ilike.%${search}%`,
-        `description.ilike.%${search}%`,
-        `category.ilike.%${search}%`,
+    // Handle search
+    let searchCondition
+    if (search) {
+      const matchingAuthors = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(or(ilike(users.display_name, `%${search}%`), ilike(users.username, `%${search}%`)))
+
+      const searchFilters = [
+        ilike(posts.title, `%${search}%`),
+        ilike(posts.description, `%${search}%`),
+        ilike(posts.category, `%${search}%`),
       ]
 
-      if (matchingAuthors && matchingAuthors.length > 0) {
-        for (const a of matchingAuthors) {
-          filters.push(`author_id.eq.${a.id}`)
-        }
+      for (const a of matchingAuthors) {
+        searchFilters.push(eq(posts.author_id, a.id))
       }
 
-      query = query.or(filters.join(','))
+      searchCondition = or(...searchFilters)
     }
 
-    // Apply type filter with fallback for missing column
-    let posts, error, count
-    if (type === 'desk') {
-      const result = await query.eq('type', 'desk').range(offset, offset + limit - 1)
-      posts = result.data
-      error = result.error
-      count = result.count
-    } else {
-      // Try with type filter first
-      const result = await query.or('type.eq.post,type.is.null').range(offset, offset + limit - 1)
-      posts = result.data
-      error = result.error
-      count = result.count
+    const whereClause = searchCondition
+      ? and(...conditions, searchCondition)
+      : and(...conditions)
 
-      // If error (column doesn't exist), retry without type filter
-      if (error) {
-        const fallback = await supabase
-          .from('posts')
-          .select(`
-            *,
-            author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
-          `, { count: 'exact' })
-          .eq('status', 'published')
-          .order('pub_date', { ascending: false })
-          .range(offset, offset + limit - 1)
-        posts = fallback.data
-        error = fallback.error
-        count = fallback.count
-      }
-    }
+    // Get total count
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(posts)
+      .where(whereClause)
 
-    if (error) {
-      console.error('Fetch posts error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch posts' },
-        { status: 500 }
-      )
-    }
+    // Get posts with author
+    const result = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+        description: posts.description,
+        image_url: posts.image_url,
+        content: posts.content,
+        category: posts.category,
+        enclosure: posts.enclosure,
+        pub_date: posts.pub_date,
+        updated_at: posts.updated_at,
+        author_id: posts.author_id,
+        status: posts.status,
+        featured: posts.featured,
+        allow_comments: posts.allow_comments,
+        type: posts.type,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+          avatar_url: users.avatar_url,
+          bio: users.bio,
+        },
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.author_id, users.id))
+      .where(whereClause)
+      .orderBy(desc(posts.pub_date))
+      .limit(limit)
+      .offset(offset)
 
     const response = NextResponse.json({
       success: true,
-      data: posts,
+      data: result,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: total || 0,
+        totalPages: Math.ceil((total || 0) / limit),
       },
     })
 
-    // Cache public posts list for 60 seconds on Vercel edge
     response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
     return response
   } catch (error) {
@@ -149,56 +141,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only super_admin can create desk posts
     const postType = type || 'post'
     if (postType === 'desk') {
-      const supabaseForUser = createServerClient()
-      if (supabaseForUser) {
-        const { data: fullUser } = await supabaseForUser
-          .from('users')
-          .select('role, email')
-          .eq('id', authUser.userId)
-          .single()
+      const [fullUser] = await db
+        .select({ role: users.role, email: users.email })
+        .from(users)
+        .where(eq(users.id, authUser.userId))
+        .limit(1)
 
-        if (!isSuperAdmin(fullUser)) {
-          return NextResponse.json(
-            { success: false, error: 'Only super admin can create desk posts' },
-            { status: 403 }
-          )
-        }
+      if (!isSuperAdmin(fullUser)) {
+        return NextResponse.json(
+          { success: false, error: 'Only super admin can create desk posts' },
+          { status: 403 }
+        )
       }
     }
 
-    // Generate normalized title
     const normalizedTitle = title
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .substring(0, 100)
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Check if normalized title already exists
-    const { data: existing } = await supabase
-      .from('posts')
-      .select('id')
-      .eq('normalized_title', normalizedTitle)
-      .single()
+    const [existing] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.normalized_title, normalizedTitle))
+      .limit(1)
 
     const finalNormalizedTitle = existing
       ? `${normalizedTitle}-${Date.now()}`
       : normalizedTitle
 
-    const { data: post, error } = await supabase
-      .from('posts')
-      .insert({
+    const [post] = await db
+      .insert(posts)
+      .values({
         title,
         normalized_title: finalNormalizedTitle,
         description: description || null,
@@ -209,34 +186,24 @@ export async function POST(request: NextRequest) {
         status: status || 'draft',
         featured: featured || false,
         allow_comments: allow_comments !== false,
-        pub_date: status === 'published' ? new Date().toISOString() : null,
+        pub_date: status === 'published' ? new Date() : null,
         type: postType,
       })
-      .select()
-      .single()
+      .returning()
 
-    if (error) {
-      console.error('Create post error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create post' },
-        { status: 500 }
-      )
-    }
-
-    // Send notification if post is published
     if (status === 'published') {
-      const { data: author } = await supabase
-        .from('users')
-        .select('display_name, username')
-        .eq('id', authUser.userId)
-        .single()
+      const [authorData] = await db
+        .select({ display_name: users.display_name, username: users.username })
+        .from(users)
+        .where(eq(users.id, authUser.userId))
+        .limit(1)
 
-      if (author) {
+      if (authorData) {
         sendNewPostNotification({
           postTitle: title,
           postSlug: post.normalized_title,
-          authorName: author.display_name,
-          authorUsername: author.username,
+          authorName: authorData.display_name,
+          authorUsername: authorData.username,
         }).catch(err => console.error('Failed to send post notification:', err))
       }
     }

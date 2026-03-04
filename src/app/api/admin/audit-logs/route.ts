@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { auditLogs, users } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 export async function GET() {
@@ -20,42 +22,31 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Fetch recent audit logs with user info
-    const { data: logs, error } = await supabase
-      .from('audit_logs')
-      .select(`
-        id,
-        action,
-        user_id,
-        target_id,
-        target_type,
-        details,
-        ip_address,
-        created_at,
-        user:users!audit_logs_user_id_fkey(id, username, display_name)
-      `)
-      .order('created_at', { ascending: false })
+    const logs = await db
+      .select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        user_id: auditLogs.user_id,
+        target_id: auditLogs.target_id,
+        target_type: auditLogs.target_type,
+        details: auditLogs.details,
+        ip_address: auditLogs.ip_address,
+        created_at: auditLogs.created_at,
+        user: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+        },
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.user_id, users.id))
+      .orderBy(desc(auditLogs.created_at))
       .limit(10)
-
-    if (error) {
-      console.error('Fetch audit logs error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch audit logs' },
-        { status: 500 }
-      )
-    }
 
     return NextResponse.json({
       success: true,
-      data: logs || [],
+      data: logs,
     })
   } catch (error) {
     console.error('Audit logs error:', error)

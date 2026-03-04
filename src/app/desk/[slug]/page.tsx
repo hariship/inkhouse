@@ -4,28 +4,47 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Navbar } from '@/components/layout/Navbar'
 import { Calendar, ArrowLeft, NotebookPen } from 'lucide-react'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, users } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import parse from 'html-react-parser'
 import { CommentsSection } from '@/components/comments/CommentsSection'
 
 export const revalidate = 60
 
 async function getDeskPost(slug: string) {
-  const supabase = createServerClient()
-  if (!supabase) return null
+  const [post] = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      normalized_title: posts.normalized_title,
+      description: posts.description,
+      image_url: posts.image_url,
+      content: posts.content,
+      category: posts.category,
+      pub_date: posts.pub_date,
+      author_id: posts.author_id,
+      allow_comments: posts.allow_comments,
+      type: posts.type,
+      author: {
+        id: users.id,
+        username: users.username,
+        display_name: users.display_name,
+        avatar_url: users.avatar_url,
+      },
+    })
+    .from(posts)
+    .leftJoin(users, eq(posts.author_id, users.id))
+    .where(
+      and(
+        eq(posts.normalized_title, slug),
+        eq(posts.status, 'published'),
+        eq(posts.type, 'desk')
+      )
+    )
+    .limit(1)
 
-  const { data: post } = await supabase
-    .from('posts')
-    .select(`
-      *,
-      author:users!posts_author_id_fkey(id, username, display_name, avatar_url)
-    `)
-    .eq('normalized_title', slug)
-    .eq('status', 'published')
-    .eq('type', 'desk')
-    .single()
-
-  return post
+  return post || null
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -92,7 +111,7 @@ export default async function DeskPostPage({ params }: { params: Promise<{ slug:
           )}
           <div className="flex items-center mt-6 text-[var(--color-text-muted)]">
             <Calendar className="w-4 h-4 mr-2" />
-            {new Date(post.pub_date).toLocaleDateString('en-US', {
+            {new Date(post.pub_date!).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',

@@ -1,4 +1,6 @@
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { apiRateLimits } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 const RATE_LIMIT = 1000 // requests per hour
 const WINDOW_MS = 60 * 60 * 1000 // 1 hour in milliseconds
@@ -32,28 +34,21 @@ export interface RateLimitResult {
  * Check rate limit for an API key
  */
 export async function checkRateLimit(keyId: string): Promise<RateLimitResult> {
-  const supabase = createServerClient()
-  if (!supabase) {
-    return {
-      allowed: false,
-      limit: RATE_LIMIT,
-      remaining: 0,
-      reset: new Date(),
-      error: 'Database not configured',
-    }
-  }
-
   const now = new Date()
   const windowStart = new Date(Math.floor(now.getTime() / WINDOW_MS) * WINDOW_MS)
   const windowEnd = new Date(windowStart.getTime() + WINDOW_MS)
 
   // Get or create rate limit record
-  const { data: existing } = await supabase
-    .from('api_rate_limits')
-    .select('*')
-    .eq('api_key_id', keyId)
-    .eq('window_start', windowStart.toISOString())
-    .single()
+  const [existing] = await db
+    .select()
+    .from(apiRateLimits)
+    .where(
+      and(
+        eq(apiRateLimits.api_key_id, keyId),
+        eq(apiRateLimits.window_start, windowStart)
+      )
+    )
+    .limit(1)
 
   if (existing) {
     if (existing.request_count >= RATE_LIMIT) {
@@ -66,10 +61,10 @@ export async function checkRateLimit(keyId: string): Promise<RateLimitResult> {
     }
 
     // Increment counter
-    await supabase
-      .from('api_rate_limits')
-      .update({ request_count: existing.request_count + 1 })
-      .eq('id', existing.id)
+    await db
+      .update(apiRateLimits)
+      .set({ request_count: existing.request_count + 1 })
+      .where(eq(apiRateLimits.id, existing.id))
 
     return {
       allowed: true,
@@ -80,9 +75,9 @@ export async function checkRateLimit(keyId: string): Promise<RateLimitResult> {
   }
 
   // Create new record
-  await supabase.from('api_rate_limits').insert({
+  await db.insert(apiRateLimits).values({
     api_key_id: keyId,
-    window_start: windowStart.toISOString(),
+    window_start: windowStart,
     request_count: 1,
   })
 

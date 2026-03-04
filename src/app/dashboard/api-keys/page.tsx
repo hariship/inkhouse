@@ -107,7 +107,8 @@ export default function ApiKeysPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: Date | string | null) => {
+    if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -115,7 +116,7 @@ export default function ApiKeysPage() {
     })
   }
 
-  const formatLastUsed = (dateString?: string) => {
+  const formatLastUsed = (dateString?: Date | string | null) => {
     if (!dateString) return 'Never'
     const date = new Date(dateString)
     const now = new Date()

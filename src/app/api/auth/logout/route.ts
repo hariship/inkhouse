@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { sessions } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { verifyRefreshToken, clearAuthCookies } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -9,28 +11,22 @@ export async function POST(request: NextRequest) {
     const refreshToken = cookieStore.get('refresh_token')?.value
 
     if (refreshToken) {
-      // Verify and get user info from refresh token
       const payload = verifyRefreshToken(refreshToken)
 
       if (payload) {
-        // Delete session from database
-        const supabase = createServerClient()
-        if (supabase) {
-          await supabase
-            .from('sessions')
-            .delete()
-            .eq('refresh_token', refreshToken)
+        try {
+          await db.delete(sessions).where(eq(sessions.refresh_token, refreshToken))
+        } catch (e) {
+          console.error('Session deletion error:', e)
         }
       }
     }
 
-    // Clear cookies
     await clearAuthCookies()
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Logout error:', error)
-    // Still clear cookies even if there's an error
     await clearAuthCookies()
     return NextResponse.json({ success: true })
   }

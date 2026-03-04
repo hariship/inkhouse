@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { verifyAccessToken, verifyRefreshToken, generateAccessToken, setAuthCookies } from '@/lib/auth'
 import { JWTPayload } from '@/types'
 
@@ -12,17 +14,14 @@ export async function GET(request: NextRequest) {
 
     let payload: JWTPayload | null = null
 
-    // Try to verify access token first
     if (accessToken) {
       payload = verifyAccessToken(accessToken)
     }
 
-    // If access token is invalid, try to refresh using refresh token
     if (!payload && refreshToken) {
       payload = verifyRefreshToken(refreshToken)
 
       if (payload) {
-        // Generate new access token
         const newAccessToken = generateAccessToken(payload)
         await setAuthCookies(newAccessToken, refreshToken)
       }
@@ -35,23 +34,27 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch full user data from database
-    const supabase = createServerClient()
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        display_name: users.display_name,
+        bio: users.bio,
+        avatar_url: users.avatar_url,
+        website_url: users.website_url,
+        social_links: users.social_links,
+        role: users.role,
+        status: users.status,
+        created_at: users.created_at,
+        updated_at: users.updated_at,
+        last_login_at: users.last_login_at,
+      })
+      .from(users)
+      .where(eq(users.id, payload.userId))
+      .limit(1)
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, username, display_name, bio, avatar_url, website_url, social_links, role, status, created_at, updated_at, last_login_at')
-      .eq('id', payload.userId)
-      .single()
-
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser, isSuperAdmin } from '@/lib/auth'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq, inArray } from 'drizzle-orm'
 import { sendNewsletter } from '@/lib/email'
 
 const NEWSLETTER_HTML = `
@@ -87,34 +89,24 @@ export async function POST(request: NextRequest) {
       // No body or invalid JSON, send to all
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 500 }
-      )
-    }
-
     // Get users (all active or specific emails)
-    let query = supabase
-      .from('users')
-      .select('id, email, display_name')
-      .eq('status', 'active')
+    let conditions = eq(users.status, 'active')
+    let allUsers
 
     if (targetEmails) {
-      query = query.in('email', targetEmails)
+      allUsers = await db
+        .select({ id: users.id, email: users.email, display_name: users.display_name })
+        .from(users)
+        .where(eq(users.status, 'active'))
+        .then(rows => rows.filter(r => targetEmails!.includes(r.email)))
+    } else {
+      allUsers = await db
+        .select({ id: users.id, email: users.email, display_name: users.display_name })
+        .from(users)
+        .where(conditions)
     }
 
-    const { data: users, error } = await query
-
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch users' },
-        { status: 500 }
-      )
-    }
-
-    if (!users || users.length === 0) {
+    if (!allUsers || allUsers.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No users found' },
         { status: 404 }
@@ -123,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Send to all users with delay to avoid rate limits
     const results = {
-      total: users.length,
+      total: allUsers.length,
       sent: 0,
       failed: 0,
       errors: [] as string[],
@@ -131,10 +123,10 @@ export async function POST(request: NextRequest) {
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-    for (const user of users) {
+    for (const u of allUsers) {
       const result = await sendNewsletter({
-        to: user.email,
-        name: user.display_name,
+        to: u.email,
+        name: u.display_name,
         subject: 'Writing Together, Deciding Together',
         html: NEWSLETTER_HTML,
       })
@@ -143,7 +135,7 @@ export async function POST(request: NextRequest) {
         results.sent++
       } else {
         results.failed++
-        results.errors.push(`${user.email}: ${result.error}`)
+        results.errors.push(`${u.email}: ${result.error}`)
       }
 
       // Wait 600ms between emails (under 2/sec rate limit)

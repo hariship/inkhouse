@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { readingLists, readingListItems } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // POST - Add post to reading list
@@ -26,22 +28,12 @@ export async function POST(
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Verify list belongs to user
-    const { data: list } = await supabase
-      .from('reading_lists')
-      .select('id')
-      .eq('id', listId)
-      .eq('user_id', authUser.userId)
-      .single()
+    const [list] = await db
+      .select({ id: readingLists.id })
+      .from(readingLists)
+      .where(and(eq(readingLists.id, listId), eq(readingLists.user_id, authUser.userId)))
+      .limit(1)
 
     if (!list) {
       return NextResponse.json(
@@ -50,32 +42,19 @@ export async function POST(
       )
     }
 
-    // Add item (upsert to handle duplicates)
-    const { error } = await supabase
-      .from('reading_list_items')
-      .upsert(
-        {
-          list_id: listId,
-          post_id: post_id,
-        },
-        {
-          onConflict: 'list_id,post_id',
-        }
-      )
-
-    if (error) {
-      console.error('Add to reading list error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to add to reading list' },
-        { status: 500 }
-      )
-    }
+    await db
+      .insert(readingListItems)
+      .values({
+        list_id: listId,
+        post_id: post_id,
+      })
+      .onConflictDoNothing()
 
     // Update list's updated_at
-    await supabase
-      .from('reading_lists')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', listId)
+    await db
+      .update(readingLists)
+      .set({ updated_at: new Date() })
+      .where(eq(readingLists.id, listId))
 
     return NextResponse.json({
       success: true,
@@ -115,22 +94,12 @@ export async function DELETE(
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Verify list belongs to user
-    const { data: list } = await supabase
-      .from('reading_lists')
-      .select('id')
-      .eq('id', listId)
-      .eq('user_id', authUser.userId)
-      .single()
+    const [list] = await db
+      .select({ id: readingLists.id })
+      .from(readingLists)
+      .where(and(eq(readingLists.id, listId), eq(readingLists.user_id, authUser.userId)))
+      .limit(1)
 
     if (!list) {
       return NextResponse.json(
@@ -139,20 +108,9 @@ export async function DELETE(
       )
     }
 
-    // Remove item
-    const { error } = await supabase
-      .from('reading_list_items')
-      .delete()
-      .eq('list_id', listId)
-      .eq('post_id', parseInt(postId))
-
-    if (error) {
-      console.error('Remove from reading list error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to remove from reading list' },
-        { status: 500 }
-      )
-    }
+    await db
+      .delete(readingListItems)
+      .where(and(eq(readingListItems.list_id, listId), eq(readingListItems.post_id, parseInt(postId))))
 
     return NextResponse.json({
       success: true,

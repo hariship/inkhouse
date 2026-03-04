@@ -1,5 +1,7 @@
 import { Resend } from 'resend'
-import { createServerClient } from './supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 const APP_NAME = 'Inkhouse'
 
@@ -27,14 +29,10 @@ function getEmailConfig() {
 }
 
 async function getSuperAdminEmails(): Promise<string[]> {
-  const supabase = createServerClient()
-  if (!supabase) return []
-
-  const { data: superAdmins } = await supabase
-    .from('users')
-    .select('email')
-    .eq('role', 'super_admin')
-    .eq('status', 'active')
+  const superAdmins = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(and(eq(users.role, 'super_admin'), eq(users.status, 'active')))
 
   return superAdmins?.map(u => u.email).filter(Boolean) || []
 }

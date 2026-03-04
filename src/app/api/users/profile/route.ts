@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 export async function PATCH(request: NextRequest) {
@@ -22,37 +24,18 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .update({
+    const [user] = await db
+      .update(users)
+      .set({
         display_name,
         bio: bio || null,
         avatar_url: avatar_url || null,
         website_url: website_url || null,
         social_links: social_links || {},
       })
-      .eq('id', authUser.userId)
-      .select()
-      .single()
+      .where(eq(users.id, authUser.userId))
+      .returning()
 
-    if (error) {
-      console.error('Update profile error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update profile' },
-        { status: 500 }
-      )
-    }
-
-    // Remove password_hash from response
     const { password_hash: _, ...safeUser } = user
 
     return NextResponse.json({

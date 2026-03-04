@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { membershipRequests } from '@/lib/db/schema'
+import { eq, desc, count } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is admin
     const authUser = await getAuthUser()
     if (!authUser || !isAdmin(authUser)) {
       return NextResponse.json(
@@ -20,44 +21,25 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
 
-    const supabase = createServerClient()
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(membershipRequests)
+      .where(eq(membershipRequests.status, status))
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Get total count
-    const { count } = await supabase
-      .from('membership_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', status)
-
-    // If only count is needed, return early
     if (countOnly) {
       return NextResponse.json({
         success: true,
-        count: count || 0,
+        count: total || 0,
       })
     }
 
-    // Get requests
-    const { data: requests, error } = await supabase
-      .from('membership_requests')
-      .select('*')
-      .eq('status', status)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      console.error('Fetch requests error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch requests' },
-        { status: 500 }
-      )
-    }
+    const requests = await db
+      .select()
+      .from(membershipRequests)
+      .where(eq(membershipRequests.status, status))
+      .orderBy(desc(membershipRequests.created_at))
+      .limit(limit)
+      .offset(offset)
 
     return NextResponse.json({
       success: true,
@@ -65,8 +47,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: total || 0,
+        totalPages: Math.ceil((total || 0) / limit),
       },
     })
   } catch (error) {

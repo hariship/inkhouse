@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { userDrafts } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - Get user's current draft
@@ -13,27 +15,11 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: draft, error } = await supabase
-      .from('user_drafts')
-      .select('*')
-      .eq('user_id', authUser.userId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('Fetch draft error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch draft' },
-        { status: 500 }
-      )
-    }
+    const [draft] = await db
+      .select()
+      .from(userDrafts)
+      .where(eq(userDrafts.user_id, authUser.userId))
+      .limit(1)
 
     return NextResponse.json({
       success: true,
@@ -62,18 +48,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, content, category, image_url, featured, allow_comments } = body
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Upsert draft (insert or update based on user_id)
-    const { data: draft, error } = await supabase
-      .from('user_drafts')
-      .upsert({
+    const [draft] = await db
+      .insert(userDrafts)
+      .values({
         user_id: authUser.userId,
         title: title || '',
         description: description || '',
@@ -82,20 +59,22 @@ export async function POST(request: NextRequest) {
         image_url: image_url || '',
         featured: featured || false,
         allow_comments: allow_comments !== false,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id',
+        updated_at: new Date(),
       })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Save draft error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to save draft' },
-        { status: 500 }
-      )
-    }
+      .onConflictDoUpdate({
+        target: userDrafts.user_id,
+        set: {
+          title: title || '',
+          description: description || '',
+          content: content || '',
+          category: category || '',
+          image_url: image_url || '',
+          featured: featured || false,
+          allow_comments: allow_comments !== false,
+          updated_at: new Date(),
+        },
+      })
+      .returning()
 
     return NextResponse.json({
       success: true,
@@ -121,26 +100,9 @@ export async function DELETE() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { error } = await supabase
-      .from('user_drafts')
-      .delete()
-      .eq('user_id', authUser.userId)
-
-    if (error) {
-      console.error('Delete draft error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete draft' },
-        { status: 500 }
-      )
-    }
+    await db
+      .delete(userDrafts)
+      .where(eq(userDrafts.user_id, authUser.userId))
 
     return NextResponse.json({
       success: true,

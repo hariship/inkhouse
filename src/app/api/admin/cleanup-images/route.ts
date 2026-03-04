@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, userDrafts, users } from '@/lib/db/schema'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 import { cloudinary, deleteImage, extractPublicId, extractCloudinaryUrls } from '@/lib/cloudinary'
 
@@ -13,56 +14,42 @@ export async function POST() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Collect all Cloudinary URLs referenced in the database
     const referencedUrls = new Set<string>()
 
     // 1. Post featured images and inline content images
-    const { data: posts } = await supabase
-      .from('posts')
-      .select('image_url, content')
+    const allPosts = await db
+      .select({ image_url: posts.image_url, content: posts.content })
+      .from(posts)
 
-    if (posts) {
-      for (const post of posts) {
-        if (post.image_url && post.image_url.includes('res.cloudinary.com')) {
-          referencedUrls.add(post.image_url)
-        }
-        for (const url of extractCloudinaryUrls(post.content || '')) {
-          referencedUrls.add(url)
-        }
+    for (const post of allPosts) {
+      if (post.image_url && post.image_url.includes('res.cloudinary.com')) {
+        referencedUrls.add(post.image_url)
+      }
+      for (const url of extractCloudinaryUrls(post.content || '')) {
+        referencedUrls.add(url)
       }
     }
 
     // 2. User draft featured images
-    const { data: drafts } = await supabase
-      .from('user_drafts')
-      .select('image_url')
+    const allDrafts = await db
+      .select({ image_url: userDrafts.image_url })
+      .from(userDrafts)
 
-    if (drafts) {
-      for (const draft of drafts) {
-        if (draft.image_url && draft.image_url.includes('res.cloudinary.com')) {
-          referencedUrls.add(draft.image_url)
-        }
+    for (const draft of allDrafts) {
+      if (draft.image_url && draft.image_url.includes('res.cloudinary.com')) {
+        referencedUrls.add(draft.image_url)
       }
     }
 
     // 3. User avatars
-    const { data: users } = await supabase
-      .from('users')
-      .select('avatar_url')
+    const allUsers = await db
+      .select({ avatar_url: users.avatar_url })
+      .from(users)
 
-    if (users) {
-      for (const user of users) {
-        if (user.avatar_url && user.avatar_url.includes('res.cloudinary.com')) {
-          referencedUrls.add(user.avatar_url)
-        }
+    for (const user of allUsers) {
+      if (user.avatar_url && user.avatar_url.includes('res.cloudinary.com')) {
+        referencedUrls.add(user.avatar_url)
       }
     }
 

@@ -1,5 +1,7 @@
 import crypto from 'crypto'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { apiKeys } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 const API_KEY_PREFIX = 'ink_'
 
@@ -42,20 +44,20 @@ export async function validateApiKey(key: string): Promise<ApiKeyValidationResul
     return { valid: false, error: 'Invalid API key format' }
   }
 
-  const supabase = createServerClient()
-  if (!supabase) {
-    return { valid: false, error: 'Database not configured' }
-  }
-
   const keyHash = hashApiKey(key)
 
-  const { data: apiKey, error } = await supabase
-    .from('api_keys')
-    .select('id, user_id, status, expires_at')
-    .eq('key_hash', keyHash)
-    .single()
+  const [apiKey] = await db
+    .select({
+      id: apiKeys.id,
+      user_id: apiKeys.user_id,
+      status: apiKeys.status,
+      expires_at: apiKeys.expires_at,
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.key_hash, keyHash))
+    .limit(1)
 
-  if (error || !apiKey) {
+  if (!apiKey) {
     return { valid: false, error: 'Invalid API key' }
   }
 
@@ -68,10 +70,10 @@ export async function validateApiKey(key: string): Promise<ApiKeyValidationResul
   }
 
   // Update last_used_at (fire and forget)
-  void supabase
-    .from('api_keys')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('id', apiKey.id)
+  void db
+    .update(apiKeys)
+    .set({ last_used_at: new Date() })
+    .where(eq(apiKeys.id, apiKey.id))
 
   return { valid: true, userId: apiKey.user_id, keyId: apiKey.id }
 }

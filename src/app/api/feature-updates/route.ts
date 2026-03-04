@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { featureUpdates } from '@/lib/db/schema'
+import { desc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - List all feature updates
@@ -13,30 +15,14 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: updates, error } = await supabase
-      .from('feature_updates')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Fetch feature updates error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch updates' },
-        { status: 500 }
-      )
-    }
+    const updates = await db
+      .select()
+      .from(featureUpdates)
+      .orderBy(desc(featureUpdates.created_at))
 
     return NextResponse.json({
       success: true,
-      data: updates || [],
+      data: updates,
     })
   } catch (error) {
     console.error('Feature updates error:', error)
@@ -83,32 +69,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: update, error } = await supabase
-      .from('feature_updates')
-      .insert({
+    const [update] = await db
+      .insert(featureUpdates)
+      .values({
         title: title.trim(),
         description: description?.trim() || null,
         category,
         created_by: authUser.userId,
       })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Create feature update error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create update' },
-        { status: 500 }
-      )
-    }
+      .returning()
 
     return NextResponse.json({
       success: true,

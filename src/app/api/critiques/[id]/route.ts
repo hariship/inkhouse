@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { critiques } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // DELETE - Delete a critique (only the critique author can delete)
@@ -18,36 +20,19 @@ export async function DELETE(
 
     const { id } = await params
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Critique ID is required' },
-        { status: 400 }
-      )
-    }
+    const [critique] = await db
+      .select({ id: critiques.id, author_id: critiques.author_id })
+      .from(critiques)
+      .where(eq(critiques.id, id))
+      .limit(1)
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Get the critique
-    const { data: critique, error: fetchError } = await supabase
-      .from('critiques')
-      .select('id, author_id')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !critique) {
+    if (!critique) {
       return NextResponse.json(
         { success: false, error: 'Critique not found' },
         { status: 404 }
       )
     }
 
-    // Only the critique author can delete it
     if (critique.author_id !== authUser.userId) {
       return NextResponse.json(
         { success: false, error: 'You can only delete your own critiques' },
@@ -55,19 +40,10 @@ export async function DELETE(
       )
     }
 
-    // Soft delete by updating status
-    const { error } = await supabase
-      .from('critiques')
-      .update({ status: 'deleted' })
-      .eq('id', id)
-
-    if (error) {
-      console.error('Delete critique error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete critique' },
-        { status: 500 }
-      )
-    }
+    await db
+      .update(critiques)
+      .set({ status: 'deleted' })
+      .where(eq(critiques.id, id))
 
     return NextResponse.json({
       success: true,

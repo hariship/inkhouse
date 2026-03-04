@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, users } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -12,34 +14,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users!posts_author_id_fkey(id, username, display_name)
-      `)
-      .order('updated_at', { ascending: false })
-
-    if (error) {
-      console.error('Fetch posts error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch posts' },
-        { status: 500 }
-      )
-    }
+    const allPosts = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+        description: posts.description,
+        content: posts.content,
+        category: posts.category,
+        image_url: posts.image_url,
+        status: posts.status,
+        featured: posts.featured,
+        allow_comments: posts.allow_comments,
+        type: posts.type,
+        author_id: posts.author_id,
+        pub_date: posts.pub_date,
+        updated_at: posts.updated_at,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+        },
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.author_id, users.id))
+      .orderBy(desc(posts.updated_at))
 
     return NextResponse.json({
       success: true,
-      data: posts,
+      data: allPosts,
     })
   } catch (error) {
     console.error('Fetch posts error:', error)

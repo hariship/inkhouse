@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 import { logUserRoleChange, logUserStatusChange } from '@/lib/audit'
 
@@ -20,38 +22,27 @@ export async function PATCH(
     const body = await request.json()
     const { role, status } = body
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Get current user state for audit log
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role, status')
-      .eq('id', id)
-      .single()
+    const [currentUser] = await db
+      .select({ role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1)
 
     const updateData: Record<string, unknown> = {}
     if (role) updateData.role = role
     if (status) updateData.status = status
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const [user] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning()
 
-    if (error) {
-      console.error('Update user error:', error)
+    if (!user) {
       return NextResponse.json(
-        { success: false, error: 'Failed to update user' },
-        { status: 500 }
+        { success: false, error: 'User not found' },
+        { status: 404 }
       )
     }
 

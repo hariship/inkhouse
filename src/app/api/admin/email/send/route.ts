@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { subscribers, users } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 import { Resend } from 'resend'
 
@@ -52,14 +54,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     const { type, subject, body, customEmail } = await request.json()
 
     if (!subject?.trim()) {
@@ -98,35 +92,29 @@ export async function POST(request: NextRequest) {
       }
       recipients = [customEmail.trim()]
     } else if (type === 'newsletter') {
-      const { data: subscribers } = await supabase
-        .from('subscribers')
-        .select('email')
-        .eq('status', 'active')
-
-      recipients = subscribers?.map(s => s.email) || []
+      const subs = await db
+        .select({ email: subscribers.email })
+        .from(subscribers)
+        .where(eq(subscribers.status, 'active'))
+      recipients = subs.map(s => s.email)
     } else if (type === 'announcement') {
-      const { data: users } = await supabase
-        .from('users')
-        .select('email')
-        .eq('status', 'active')
-
-      recipients = users?.map(u => u.email) || []
+      const allUsers = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.status, 'active'))
+      recipients = allUsers.map(u => u.email)
     } else if (type === 'writers') {
-      const { data: writers } = await supabase
-        .from('users')
-        .select('email')
-        .eq('status', 'active')
-        .in('role', ['writer', 'admin', 'super_admin'])
-
-      recipients = writers?.map(w => w.email) || []
+      const writers = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(and(eq(users.status, 'active'), inArray(users.role, ['writer', 'admin', 'super_admin'])))
+      recipients = writers.map(w => w.email)
     } else if (type === 'readers') {
-      const { data: readers } = await supabase
-        .from('users')
-        .select('email')
-        .eq('status', 'active')
-        .eq('role', 'reader')
-
-      recipients = readers?.map(r => r.email) || []
+      const readers = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(and(eq(users.status, 'active'), eq(users.role, 'reader')))
+      recipients = readers.map(r => r.email)
     }
 
     if (recipients.length === 0) {

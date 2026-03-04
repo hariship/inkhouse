@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { bookmarks, posts, users } from '@/lib/db/schema'
+import { eq, and, inArray, desc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - Get user's bookmarks
@@ -15,25 +17,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const postId = searchParams.get('postId')
-    const postIds = searchParams.get('postIds') // comma-separated for bulk check
-
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    const postIds = searchParams.get('postIds')
 
     if (postId) {
-      // Check single post bookmark status
-      const { data } = await supabase
-        .from('bookmarks')
-        .select('id, created_at')
-        .eq('user_id', authUser.userId)
-        .eq('post_id', parseInt(postId))
-        .single()
+      const [data] = await db
+        .select({ id: bookmarks.id, created_at: bookmarks.created_at })
+        .from(bookmarks)
+        .where(and(eq(bookmarks.user_id, authUser.userId), eq(bookmarks.post_id, parseInt(postId))))
+        .limit(1)
 
       return NextResponse.json({
         success: true,
@@ -45,17 +36,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (postIds) {
-      // Bulk bookmark status check
       const ids = postIds.split(',').map((id) => parseInt(id.trim()))
-      const { data } = await supabase
-        .from('bookmarks')
-        .select('post_id, created_at')
-        .eq('user_id', authUser.userId)
-        .in('post_id', ids)
+      const data = await db
+        .select({ post_id: bookmarks.post_id, created_at: bookmarks.created_at })
+        .from(bookmarks)
+        .where(and(eq(bookmarks.user_id, authUser.userId), inArray(bookmarks.post_id, ids)))
 
       const bookmarkMap: Record<number, string> = {}
-      data?.forEach((item) => {
-        bookmarkMap[item.post_id] = item.created_at
+      data.forEach((item) => {
+        bookmarkMap[item.post_id] = item.created_at?.toISOString() || ''
       })
 
       return NextResponse.json({
@@ -65,33 +54,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Return all bookmarked posts with post details
-    const { data, error } = await supabase
-      .from('bookmarks')
-      .select(`
-        id,
-        post_id,
-        created_at,
-        post:posts!bookmarks_post_id_fkey(
-          id,
-          title,
-          normalized_title,
-          description,
-          image_url,
-          category,
-          pub_date,
-          author:users!posts_author_id_fkey(id, username, display_name, avatar_url)
-        )
-      `)
-      .eq('user_id', authUser.userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Get bookmarks error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to get bookmarks' },
-        { status: 500 }
-      )
-    }
+    const data = await db
+      .select({
+        id: bookmarks.id,
+        post_id: bookmarks.post_id,
+        created_at: bookmarks.created_at,
+        post: {
+          id: posts.id,
+          title: posts.title,
+          normalized_title: posts.normalized_title,
+          description: posts.description,
+          image_url: posts.image_url,
+          category: posts.category,
+          pub_date: posts.pub_date,
+          author_id: posts.author_id,
+        },
+      })
+      .from(bookmarks)
+      .leftJoin(posts, eq(bookmarks.post_id, posts.id))
+      .where(eq(bookmarks.user_id, authUser.userId))
+      .orderBy(desc(bookmarks.created_at))
 
     return NextResponse.json({
       success: true,
@@ -126,35 +108,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Upsert to handle duplicates gracefully
-    const { error } = await supabase
-      .from('bookmarks')
-      .upsert(
-        {
-          user_id: authUser.userId,
-          post_id: post_id,
-        },
-        {
-          onConflict: 'user_id,post_id',
-        }
-      )
-
-    if (error) {
-      console.error('Add bookmark error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to add bookmark' },
-        { status: 500 }
-      )
-    }
+    await db
+      .insert(bookmarks)
+      .values({
+        user_id: authUser.userId,
+        post_id: post_id,
+      })
+      .onConflictDoNothing()
 
     return NextResponse.json({
       success: true,
@@ -190,28 +150,9 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { error } = await supabase
-      .from('bookmarks')
-      .delete()
-      .eq('user_id', authUser.userId)
-      .eq('post_id', parseInt(postId))
-
-    if (error) {
-      console.error('Remove bookmark error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to remove bookmark' },
-        { status: 500 }
-      )
-    }
+    await db
+      .delete(bookmarks)
+      .where(and(eq(bookmarks.user_id, authUser.userId), eq(bookmarks.post_id, parseInt(postId))))
 
     return NextResponse.json({
       success: true,

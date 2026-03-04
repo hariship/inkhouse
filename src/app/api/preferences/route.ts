@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { userPreferences } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - Get user preferences
@@ -13,31 +15,12 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
+    const [data] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.user_id, authUser.userId))
+      .limit(1)
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', authUser.userId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 is "no rows returned" which is fine
-      console.error('Get preferences error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to get preferences' },
-        { status: 500 }
-      )
-    }
-
-    // Return defaults if no preferences exist
     return NextResponse.json({
       success: true,
       data: data || {
@@ -70,7 +53,6 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { view_mode, default_sort, default_filter } = body
 
-    // Validate input
     if (view_mode && !['grid', 'list'].includes(view_mode)) {
       return NextResponse.json(
         { success: false, error: 'Invalid view mode' },
@@ -92,43 +74,22 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Build update object
     const updateData: Record<string, unknown> = {}
     if (view_mode) updateData.view_mode = view_mode
     if (default_sort) updateData.default_sort = default_sort
     if (default_filter) updateData.default_filter = default_filter
 
-    // Upsert preferences
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .upsert(
-        {
-          user_id: authUser.userId,
-          ...updateData,
-        },
-        {
-          onConflict: 'user_id',
-        }
-      )
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Update preferences error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update preferences' },
-        { status: 500 }
-      )
-    }
+    const [data] = await db
+      .insert(userPreferences)
+      .values({
+        user_id: authUser.userId,
+        ...updateData,
+      })
+      .onConflictDoUpdate({
+        target: userPreferences.user_id,
+        set: { ...updateData, updated_at: new Date() },
+      })
+      .returning()
 
     return NextResponse.json({
       success: true,

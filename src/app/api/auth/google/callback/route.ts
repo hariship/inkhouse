@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, sessions, membershipRequests, userPreferences } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -34,26 +36,24 @@ interface GoogleUserInfo {
   picture?: string
 }
 
-// Generate unique username from email prefix
-async function generateUniqueUsername(email: string, supabase: ReturnType<typeof createServerClient>): Promise<string> {
+async function generateUniqueUsername(email: string): Promise<string> {
   const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
-  let username = baseUsername.slice(0, 20) // Max 20 chars
+  let username = baseUsername.slice(0, 20)
   let suffix = 0
 
   while (true) {
     const candidateUsername = suffix === 0 ? username : `${username.slice(0, 17)}${suffix}`
-    const { data: existing } = await supabase!
-      .from('users')
-      .select('id')
-      .eq('username', candidateUsername)
-      .single()
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, candidateUsername))
+      .limit(1)
 
     if (!existing) {
       return candidateUsername
     }
     suffix++
     if (suffix > 999) {
-      // Fallback to random suffix
       return `${username.slice(0, 12)}${crypto.randomBytes(4).toString('hex')}`
     }
   }
@@ -65,7 +65,6 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  // Handle Google OAuth errors
   if (error) {
     console.error('Google OAuth error:', error)
     return NextResponse.redirect(`${APP_URL}/login?error=google_auth_failed`)
@@ -75,13 +74,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/login?error=missing_params`)
   }
 
-  // Verify state matches cookie
   const storedState = request.cookies.get('google_oauth_state')?.value
   if (!storedState || storedState !== state) {
     return NextResponse.redirect(`${APP_URL}/login?error=invalid_state`)
   }
 
-  // Decode state to get source
   let stateData: { token: string; source: string; timestamp: number }
   try {
     stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
@@ -89,14 +86,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/login?error=invalid_state`)
   }
 
-  // Check state hasn't expired (10 minutes)
   if (Date.now() - stateData.timestamp > 10 * 60 * 1000) {
     return NextResponse.redirect(`${APP_URL}/login?error=state_expired`)
   }
 
-  const source = stateData.source // 'login', 'signup', or 'join'
+  const source = stateData.source
 
-  // Exchange code for tokens
   let tokens: GoogleTokenResponse
   try {
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -122,7 +117,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/login?error=token_exchange_failed`)
   }
 
-  // Get user info from Google
   let googleUser: GoogleUserInfo
   try {
     const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -140,57 +134,48 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/login?error=user_info_failed`)
   }
 
-  // Ensure email is verified
   if (!googleUser.verified_email) {
     return NextResponse.redirect(`${APP_URL}/login?error=email_not_verified`)
   }
 
-  const supabase = createServerClient()
-  if (!supabase) {
-    return NextResponse.redirect(`${APP_URL}/login?error=database_error`)
-  }
-
   // Check if user exists by google_id
-  const { data: existingByGoogleId } = await supabase
-    .from('users')
-    .select('*')
-    .eq('google_id', googleUser.id)
-    .single()
+  const [existingByGoogleId] = await db
+    .select()
+    .from(users)
+    .where(eq(users.google_id, googleUser.id))
+    .limit(1)
 
   if (existingByGoogleId) {
-    // Flow 4: Returning Google User - just log them in
     return await loginUser(existingByGoogleId, request)
   }
 
   // Check if user exists by email
-  const { data: existingByEmail } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', googleUser.email.toLowerCase())
-    .single()
+  const [existingByEmail] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, googleUser.email.toLowerCase()))
+    .limit(1)
 
   if (existingByEmail) {
-    // Flow 3: Existing user, first Google sign in - link accounts
-    await supabase
-      .from('users')
-      .update({
+    await db
+      .update(users)
+      .set({
         google_id: googleUser.id,
         auth_provider: existingByEmail.password_hash ? 'both' : 'google',
         avatar_url: existingByEmail.avatar_url || googleUser.picture,
       })
-      .eq('id', existingByEmail.id)
+      .where(eq(users.id, existingByEmail.id))
 
-    return await loginUser({ ...existingByEmail, google_id: googleUser.id }, request)
+    return await loginUser(existingByEmail, request)
   }
 
   // User doesn't exist - handle based on source
   if (source === 'signup') {
-    // Flow 1: New reader via /signup
-    const username = await generateUniqueUsername(googleUser.email, supabase)
+    const username = await generateUniqueUsername(googleUser.email)
 
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
-      .insert({
+    const [newUser] = await db
+      .insert(users)
+      .values({
         email: googleUser.email.toLowerCase(),
         username,
         display_name: googleUser.name,
@@ -200,22 +185,18 @@ export async function GET(request: NextRequest) {
         role: 'reader',
         status: 'active',
       })
-      .select()
-      .single()
+      .returning()
 
-    if (createError || !newUser) {
-      console.error('User creation error:', createError)
+    if (!newUser) {
       return NextResponse.redirect(`${APP_URL}/signup?error=account_creation_failed`)
     }
 
-    // Create default preferences
-    await supabase.from('user_preferences').insert({
+    await db.insert(userPreferences).values({
       user_id: newUser.id,
       view_mode: 'grid',
       default_sort: 'date',
     })
 
-    // Notify admin (non-blocking)
     sendNewReaderNotification({
       name: newUser.display_name,
       username: newUser.username,
@@ -226,13 +207,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (source === 'join') {
-    // Flow 2: New writer request via /join
-    // Check if there's already a pending request
-    const { data: existingRequest } = await supabase
-      .from('membership_requests')
-      .select('id, status')
-      .eq('email', googleUser.email.toLowerCase())
-      .single()
+    const [existingRequest] = await db
+      .select({ id: membershipRequests.id, status: membershipRequests.status })
+      .from(membershipRequests)
+      .where(eq(membershipRequests.email, googleUser.email.toLowerCase()))
+      .limit(1)
 
     if (existingRequest) {
       if (existingRequest.status === 'pending') {
@@ -243,27 +222,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Create membership request
     const username = googleUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20)
 
-    const { error: requestError } = await supabase
-      .from('membership_requests')
-      .insert({
-        email: googleUser.email.toLowerCase(),
-        name: googleUser.name,
-        username,
-        writing_sample: '(Signed up via Google - no writing sample provided)',
-        google_id: googleUser.id,
-        google_avatar_url: googleUser.picture,
-        status: 'pending',
-      })
+    await db.insert(membershipRequests).values({
+      email: googleUser.email.toLowerCase(),
+      name: googleUser.name,
+      username,
+      writing_sample: '(Signed up via Google - no writing sample provided)',
+      google_id: googleUser.id,
+      google_avatar_url: googleUser.picture,
+      status: 'pending',
+    })
 
-    if (requestError) {
-      console.error('Membership request error:', requestError)
-      return NextResponse.redirect(`${APP_URL}/join?error=request_failed`)
-    }
-
-    // Notify admin
     sendNewRequestNotification({
       name: googleUser.name,
       username,
@@ -275,8 +245,6 @@ export async function GET(request: NextRequest) {
   }
 
   // source === 'login' but no account exists
-  // Flow 5: Redirect to choose-role page
-  // Store Google user info in a temporary token
   const tempData = {
     googleId: googleUser.id,
     email: googleUser.email,
@@ -287,8 +255,6 @@ export async function GET(request: NextRequest) {
   const tempToken = Buffer.from(JSON.stringify(tempData)).toString('base64url')
 
   const response = NextResponse.redirect(`${APP_URL}/auth/google/choose-role?token=${tempToken}`)
-
-  // Clear the OAuth state cookie
   response.cookies.delete('google_oauth_state')
 
   return response
@@ -299,9 +265,6 @@ async function loginUser(
   request: NextRequest,
   redirectPath = '/?welcome=true'
 ) {
-  const supabase = createServerClient()!
-
-  // Generate tokens
   const payload: JWTPayload = {
     userId: user.id,
     email: user.email,
@@ -312,30 +275,24 @@ async function loginUser(
   const accessToken = generateAccessToken(payload)
   const refreshToken = generateRefreshToken(payload)
 
-  // Store session
-  await supabase.from('sessions').insert({
+  await db.insert(sessions).values({
     user_id: user.id,
     refresh_token: refreshToken,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     user_agent: request.headers.get('user-agent') || '',
     ip_address: request.headers.get('x-forwarded-for') || '',
   })
 
-  // Update last login
-  await supabase
-    .from('users')
-    .update({ last_login_at: new Date().toISOString() })
-    .eq('id', user.id)
+  await db
+    .update(users)
+    .set({ last_login_at: new Date() })
+    .where(eq(users.id, user.id))
 
-  // Audit log
   await logLoginSuccess(user.id, user.email, request)
 
-  // Set cookies and redirect
   await setAuthCookies(accessToken, refreshToken)
 
   const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${redirectPath}`)
-
-  // Clear the OAuth state cookie
   response.cookies.delete('google_oauth_state')
 
   return response

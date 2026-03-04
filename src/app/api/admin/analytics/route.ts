@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, posts, pageViews } from '@/lib/db/schema'
+import { eq, and, count, inArray } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 import { AdminAnalytics } from '@/types'
 
@@ -14,58 +16,39 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Get counts in parallel
     const [
-      { count: totalUsers },
-      { count: totalWriters },
-      { count: totalReaders },
-      { count: totalPosts },
-      { count: totalViews },
-      { data: topAuthorsData },
+      [{ total: totalUsers }],
+      [{ total: totalWriters }],
+      [{ total: totalReaders }],
+      [{ total: totalPosts }],
+      [{ total: totalViews }],
+      publishedPosts,
     ] = await Promise.all([
-      supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active'),
-      supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .in('role', ['writer', 'admin', 'super_admin']),
-      supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .eq('role', 'reader'),
-      supabase
-        .from('posts')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'published'),
-      supabase
-        .from('page_views')
-        .select('*', { count: 'exact', head: true }),
-      // Get top authors by post count
-      supabase
-        .from('posts')
-        .select(`
-          id,
-          author_id,
-          author:users!posts_author_id_fkey(id, username, display_name, avatar_url)
-        `)
-        .eq('status', 'published'),
+      db.select({ total: count() }).from(users).where(eq(users.status, 'active')),
+      db.select({ total: count() }).from(users).where(and(eq(users.status, 'active'), inArray(users.role, ['writer', 'admin', 'super_admin']))),
+      db.select({ total: count() }).from(users).where(and(eq(users.status, 'active'), eq(users.role, 'reader'))),
+      db.select({ total: count() }).from(posts).where(eq(posts.status, 'published')),
+      db.select({ total: count() }).from(pageViews),
+      // Get published posts with author info
+      db.select({
+        id: posts.id,
+        author_id: posts.author_id,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+          avatar_url: users.avatar_url,
+        },
+      })
+        .from(posts)
+        .leftJoin(users, eq(posts.author_id, users.id))
+        .where(eq(posts.status, 'published')),
     ])
 
     // Calculate top authors
     const authorCounts: Record<string, { author: unknown; count: number }> = {}
-    topAuthorsData?.forEach((post) => {
+    publishedPosts.forEach((post) => {
       const authorId = post.author_id
       if (!authorCounts[authorId]) {
         authorCounts[authorId] = { author: post.author, count: 0 }
@@ -73,14 +56,14 @@ export async function GET() {
       authorCounts[authorId].count++
     })
 
-    // Build top 10 authors and collect all their post IDs from data we already have
+    // Build top 10 authors and collect all their post IDs
     const top10Entries = Object.entries(authorCounts)
       .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 10)
 
-    // Build a map of author → post IDs from topAuthorsData (already fetched)
+    // Build a map of author → post IDs
     const authorPostIds: Record<string, number[]> = {}
-    topAuthorsData?.forEach((post) => {
+    publishedPosts.forEach((post) => {
       const authorId = post.author_id
       if (!authorPostIds[authorId]) {
         authorPostIds[authorId] = []
@@ -88,7 +71,7 @@ export async function GET() {
       authorPostIds[authorId].push(post.id)
     })
 
-    // Collect all post IDs from top 10 authors into a single array
+    // Collect all post IDs from top 10 authors
     const allTopAuthorPostIds = top10Entries.flatMap(
       ([authorId]) => authorPostIds[authorId] || []
     )
@@ -96,10 +79,10 @@ export async function GET() {
     // Single query: get view counts for all top authors' posts at once
     const viewCountsByAuthor: Record<string, number> = {}
     if (allTopAuthorPostIds.length > 0) {
-      const { data: viewRows } = await supabase
-        .from('page_views')
-        .select('post_id')
-        .in('post_id', allTopAuthorPostIds)
+      const viewRows = await db
+        .select({ post_id: pageViews.post_id })
+        .from(pageViews)
+        .where(inArray(pageViews.post_id, allTopAuthorPostIds))
 
       // Group view counts by author
       const postToAuthor: Record<number, string> = {}
@@ -108,7 +91,7 @@ export async function GET() {
           postToAuthor[postId] = authorId
         }
       }
-      viewRows?.forEach((row) => {
+      viewRows.forEach((row) => {
         const aid = postToAuthor[row.post_id]
         if (aid) {
           viewCountsByAuthor[aid] = (viewCountsByAuthor[aid] || 0) + 1
@@ -128,7 +111,7 @@ export async function GET() {
       total_readers: totalReaders || 0,
       total_posts: totalPosts || 0,
       total_views: totalViews || 0,
-      user_growth: [], // Could add time-series data later
+      user_growth: [],
       content_growth: [],
       top_authors: topAuthors as AdminAnalytics['top_authors'],
     }

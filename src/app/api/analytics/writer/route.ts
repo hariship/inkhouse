@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, pageViews, postReads, readingListItems, bookmarks, comments, critiques } from '@/lib/db/schema'
+import { eq, and, count } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 import { PostAnalytics, WriterAnalytics } from '@/types'
 
@@ -14,31 +16,18 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Get all published posts by this author
-    const { data: posts, error: postsError } = await supabase
-      .from('posts')
-      .select('id, title, normalized_title')
-      .eq('author_id', authUser.userId)
-      .eq('status', 'published')
-      .order('pub_date', { ascending: false })
+    const authorPosts = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+      })
+      .from(posts)
+      .where(and(eq(posts.author_id, authUser.userId), eq(posts.status, 'published')))
+      .orderBy(posts.pub_date)
 
-    if (postsError) {
-      console.error('Fetch posts error:', postsError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch posts' },
-        { status: 500 }
-      )
-    }
-
-    if (!posts || posts.length === 0) {
+    if (authorPosts.length === 0) {
       const emptyAnalytics: WriterAnalytics = {
         total_posts: 0,
         total_views: 0,
@@ -52,36 +41,32 @@ export async function GET() {
       return NextResponse.json({ success: true, data: emptyAnalytics })
     }
 
-    const postIds = posts.map((p) => p.id)
-
     // Helper to get count for a single post from a table
-    const getCount = async (
-      table: 'page_views' | 'post_reads' | 'reading_list_items' | 'bookmarks' | 'comments' | 'critiques',
+    const getPostCount = async (
+      table: typeof pageViews | typeof postReads | typeof readingListItems | typeof bookmarks | typeof comments | typeof critiques,
       postId: number,
-      extraFilter?: { column: string; value: string }
+      extraFilter?: { column: typeof comments.status | typeof critiques.status; value: string }
     ): Promise<number> => {
-      let query = supabase
-        .from(table)
-        .select('*', { count: 'exact', head: true })
-        .eq('post_id', postId)
-
+      const conditions = [eq(table.post_id, postId)]
       if (extraFilter) {
-        query = query.eq(extraFilter.column, extraFilter.value)
+        conditions.push(eq(extraFilter.column, extraFilter.value))
       }
-
-      const { count } = await query
-      return count || 0
+      const [result] = await db
+        .select({ total: count() })
+        .from(table)
+        .where(and(...conditions))
+      return result?.total || 0
     }
 
     // Fetch per-post counts in parallel (6 counts per post, all posts in parallel)
-    const postAnalyticsPromises = posts.map(async (post) => {
-      const [views, reads, box_additions, bookmarks, comments, critiques] = await Promise.all([
-        getCount('page_views', post.id),
-        getCount('post_reads', post.id),
-        getCount('reading_list_items', post.id),
-        getCount('bookmarks', post.id),
-        getCount('comments', post.id, { column: 'status', value: 'approved' }),
-        getCount('critiques', post.id, { column: 'status', value: 'active' }),
+    const postAnalyticsPromises = authorPosts.map(async (post) => {
+      const [views, reads, box_additions, bookmarkCount, commentCount, critiqueCount] = await Promise.all([
+        getPostCount(pageViews, post.id),
+        getPostCount(postReads, post.id),
+        getPostCount(readingListItems, post.id),
+        getPostCount(bookmarks, post.id),
+        getPostCount(comments, post.id, { column: comments.status, value: 'approved' }),
+        getPostCount(critiques, post.id, { column: critiques.status, value: 'active' }),
       ])
 
       return {
@@ -91,16 +76,16 @@ export async function GET() {
         views,
         reads,
         box_additions,
-        bookmarks,
-        comments,
-        critiques,
+        bookmarks: bookmarkCount,
+        comments: commentCount,
+        critiques: critiqueCount,
       }
     })
 
     const postAnalytics: PostAnalytics[] = await Promise.all(postAnalyticsPromises)
 
     const analytics: WriterAnalytics = {
-      total_posts: posts.length,
+      total_posts: authorPosts.length,
       total_views: postAnalytics.reduce((sum, p) => sum + p.views, 0),
       total_reads: postAnalytics.reduce((sum, p) => sum + p.reads, 0),
       total_box_additions: postAnalytics.reduce((sum, p) => sum + p.box_additions, 0),

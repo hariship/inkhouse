@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, sessions, membershipRequests, userPreferences } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -17,19 +19,18 @@ interface GoogleUserData {
   timestamp: number
 }
 
-// Generate unique username from email prefix
-async function generateUniqueUsername(email: string, supabase: ReturnType<typeof createServerClient>): Promise<string> {
+async function generateUniqueUsername(email: string): Promise<string> {
   const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
   let username = baseUsername.slice(0, 20)
   let suffix = 0
 
   while (true) {
     const candidateUsername = suffix === 0 ? username : `${username.slice(0, 17)}${suffix}`
-    const { data: existing } = await supabase!
-      .from('users')
-      .select('id')
-      .eq('username', candidateUsername)
-      .single()
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, candidateUsername))
+      .limit(1)
 
     if (!existing) {
       return candidateUsername
@@ -52,7 +53,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Decode and validate token
     let userData: GoogleUserData
     try {
       userData = JSON.parse(Buffer.from(token, 'base64url').toString())
@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if token is expired (10 minutes)
     if (Date.now() - userData.timestamp > 10 * 60 * 1000) {
       return NextResponse.json(
         { success: false, error: 'Token expired' },
@@ -71,20 +70,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Double-check user doesn't already exist
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .or(`email.eq.${userData.email.toLowerCase()},google_id.eq.${userData.googleId}`)
-      .single()
+    const [existingUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        or(
+          eq(users.email, userData.email.toLowerCase()),
+          eq(users.google_id, userData.googleId)
+        )
+      )
+      .limit(1)
 
     if (existingUser) {
       return NextResponse.json(
@@ -93,12 +89,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the user as reader
-    const username = await generateUniqueUsername(userData.email, supabase)
+    const username = await generateUniqueUsername(userData.email)
 
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
-      .insert({
+    const [newUser] = await db
+      .insert(users)
+      .values({
         email: userData.email.toLowerCase(),
         username,
         display_name: userData.name,
@@ -108,25 +103,21 @@ export async function POST(request: NextRequest) {
         role: 'reader',
         status: 'active',
       })
-      .select()
-      .single()
+      .returning()
 
-    if (createError || !newUser) {
-      console.error('User creation error:', createError)
+    if (!newUser) {
       return NextResponse.json(
         { success: false, error: 'Failed to create account' },
         { status: 500 }
       )
     }
 
-    // Create default preferences
-    await supabase.from('user_preferences').insert({
+    await db.insert(userPreferences).values({
       user_id: newUser.id,
       view_mode: 'grid',
       default_sort: 'date',
     })
 
-    // Notify admin about new reader
     sendNewReaderNotification({
       name: newUser.display_name,
       username: newUser.username,
@@ -135,11 +126,9 @@ export async function POST(request: NextRequest) {
 
     let writerRequestSubmitted = false
 
-    // If user wants to write, create a membership request for upgrade
     if (wantsToWrite) {
-      const { error: requestError } = await supabase
-        .from('membership_requests')
-        .insert({
+      try {
+        await db.insert(membershipRequests).values({
           email: userData.email.toLowerCase(),
           name: userData.name,
           username,
@@ -149,40 +138,37 @@ export async function POST(request: NextRequest) {
           status: 'pending',
         })
 
-      if (!requestError) {
         writerRequestSubmitted = true
 
-        // Notify admin about writer request
         sendNewRequestNotification({
           name: userData.name,
           username,
           email: userData.email,
           writingSample: '(Signed up via Google - requesting writer access)',
         }).catch(err => console.error('Failed to send notification:', err))
+      } catch (e) {
+        console.error('Membership request error:', e)
       }
     }
 
-    // Generate tokens and create session
     const payload: JWTPayload = {
       userId: newUser.id,
       email: newUser.email,
       username: newUser.username,
-      role: newUser.role,
+      role: newUser.role as JWTPayload['role'],
     }
 
     const accessToken = generateAccessToken(payload)
     const refreshToken = generateRefreshToken(payload)
 
-    // Store session
-    await supabase.from('sessions').insert({
+    await db.insert(sessions).values({
       user_id: newUser.id,
       refresh_token: refreshToken,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       user_agent: request.headers.get('user-agent') || '',
       ip_address: request.headers.get('x-forwarded-for') || '',
     })
 
-    // Set cookies
     await setAuthCookies(accessToken, refreshToken)
 
     return NextResponse.json({

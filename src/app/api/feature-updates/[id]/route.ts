@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { featureUpdates } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // DELETE - Delete feature update (super_admin only)
@@ -26,26 +28,9 @@ export async function DELETE(
 
     const { id } = await params
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { error } = await supabase
-      .from('feature_updates')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      console.error('Delete feature update error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete update' },
-        { status: 500 }
-      )
-    }
+    await db
+      .delete(featureUpdates)
+      .where(eq(featureUpdates.id, id))
 
     return NextResponse.json({
       success: true,

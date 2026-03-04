@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { subscribers, users } from '@/lib/db/schema'
+import { eq, and, count, inArray } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -19,58 +21,40 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'newsletter'
 
-    let count = 0
+    let total = 0
 
     if (type === 'newsletter') {
-      // Count active subscribers
-      const { count: subscriberCount } = await supabase
-        .from('subscribers')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-
-      count = subscriberCount || 0
+      const [result] = await db
+        .select({ total: count() })
+        .from(subscribers)
+        .where(eq(subscribers.status, 'active'))
+      total = result?.total || 0
     } else if (type === 'announcement') {
-      // Count all active users
-      const { count: userCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-
-      count = userCount || 0
+      const [result] = await db
+        .select({ total: count() })
+        .from(users)
+        .where(eq(users.status, 'active'))
+      total = result?.total || 0
     } else if (type === 'writers') {
-      // Count active writers (writer, admin, super_admin roles)
-      const { count: writerCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .in('role', ['writer', 'admin', 'super_admin'])
-
-      count = writerCount || 0
+      const [result] = await db
+        .select({ total: count() })
+        .from(users)
+        .where(and(eq(users.status, 'active'), inArray(users.role, ['writer', 'admin', 'super_admin'])))
+      total = result?.total || 0
     } else if (type === 'readers') {
-      // Count active readers only
-      const { count: readerCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .eq('role', 'reader')
-
-      count = readerCount || 0
+      const [result] = await db
+        .select({ total: count() })
+        .from(users)
+        .where(and(eq(users.status, 'active'), eq(users.role, 'reader')))
+      total = result?.total || 0
     }
 
     return NextResponse.json({
       success: true,
-      data: { type, count },
+      data: { type, count: total },
     })
   } catch (error) {
     console.error('Get recipients error:', error)

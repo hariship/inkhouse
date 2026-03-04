@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { subscribers } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +15,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -22,21 +23,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Check if already subscribed
-    const { data: existing } = await supabase
-      .from('subscribers')
-      .select('id, status')
-      .eq('email', email.toLowerCase())
-      .single()
+    const [existing] = await db
+      .select({ id: subscribers.id, status: subscribers.status })
+      .from(subscribers)
+      .where(eq(subscribers.email, email.toLowerCase()))
+      .limit(1)
 
     if (existing) {
       if (existing.status === 'active') {
@@ -47,15 +38,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Reactivate subscription
-      await supabase
-        .from('subscribers')
-        .update({
+      await db
+        .update(subscribers)
+        .set({
           status: 'active',
           name: name || null,
           categories: categories || null,
           frequency: frequency || 'weekly',
         })
-        .eq('id', existing.id)
+        .where(eq(subscribers.id, existing.id))
 
       return NextResponse.json({
         success: true,
@@ -63,22 +54,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create new subscription
-    const { error } = await supabase.from('subscribers').insert({
+    await db.insert(subscribers).values({
       email: email.toLowerCase(),
       name: name || null,
       categories: categories || null,
       frequency: frequency || 'weekly',
       status: 'active',
     })
-
-    if (error) {
-      console.error('Subscribe error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to subscribe' },
-        { status: 500 }
-      )
-    }
 
     return NextResponse.json({
       success: true,

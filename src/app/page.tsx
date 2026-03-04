@@ -1,7 +1,10 @@
 import { Metadata } from 'next'
 import { Navbar } from '@/components/layout/Navbar'
 import HomeContent from '@/components/home/HomeContent'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, users } from '@/lib/db/schema'
+import { eq, desc, or, isNull, isNotNull, ne, count, sql } from 'drizzle-orm'
+import { PostWithAuthor } from '@/types'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
@@ -16,53 +19,62 @@ export const metadata: Metadata = {
 }
 
 async function getInitialData() {
-  const supabase = createServerClient()
-  if (!supabase) {
-    return { posts: [], totalPages: 0, categories: [] }
-  }
+  // Fetch posts with author join (exclude desk posts)
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      normalized_title: posts.normalized_title,
+      description: posts.description,
+      image_url: posts.image_url,
+      content: posts.content,
+      category: posts.category,
+      enclosure: posts.enclosure,
+      pub_date: posts.pub_date,
+      updated_at: posts.updated_at,
+      author_id: posts.author_id,
+      status: posts.status,
+      featured: posts.featured,
+      allow_comments: posts.allow_comments,
+      type: posts.type,
+      author: {
+        id: users.id,
+        username: users.username,
+        display_name: users.display_name,
+        avatar_url: users.avatar_url,
+        bio: users.bio,
+      },
+    })
+    .from(posts)
+    .leftJoin(users, eq(posts.author_id, users.id))
+    .where(
+      sql`${posts.status} = 'published' AND (${posts.type} = 'post' OR ${posts.type} IS NULL)`
+    )
+    .orderBy(desc(posts.pub_date))
+    .limit(10)
+    .offset(0)
 
-  // Fetch posts (exclude desk posts if type column exists)
-  let postsQuery = supabase
-    .from('posts')
-    .select(`
-      *,
-      author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
-    `, { count: 'exact' })
-    .eq('status', 'published')
-    .order('pub_date', { ascending: false })
-    .range(0, 9)
+  // Get total count
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(posts)
+    .where(
+      sql`${posts.status} = 'published' AND (${posts.type} = 'post' OR ${posts.type} IS NULL)`
+    )
 
-  // Try with type filter first, fall back without it if column doesn't exist
-  let { data: posts, count, error } = await postsQuery.or('type.eq.post,type.is.null')
+  // Fetch unique categories
+  const categoryData = await db
+    .select({ category: posts.category })
+    .from(posts)
+    .where(
+      sql`${posts.status} = 'published' AND ${posts.category} IS NOT NULL AND ${posts.category} != ''`
+    )
 
-  // If error (likely column doesn't exist), retry without type filter
-  if (error) {
-    const result = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio)
-      `, { count: 'exact' })
-      .eq('status', 'published')
-      .order('pub_date', { ascending: false })
-      .range(0, 9)
-    posts = result.data
-    count = result.count
-  }
-
-  // Fetch unique categories (from regular posts only)
-  const { data: categoryData } = await supabase
-    .from('posts')
-    .select('category')
-    .eq('status', 'published')
-    .not('category', 'is', null)
-    .not('category', 'eq', '')
-
-  const categories = [...new Set(categoryData?.map(p => p.category).filter(Boolean))] as string[]
+  const categories = [...new Set(categoryData.map(p => p.category).filter(Boolean))] as string[]
 
   return {
-    posts: posts || [],
-    totalPages: Math.ceil((count || 0) / 10),
+    posts: rows as unknown as PostWithAuthor[],
+    totalPages: Math.ceil((total || 0) / 10),
     categories: categories.sort(),
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, posts, membershipRequests, subscribers } from '@/lib/db/schema'
+import { eq, count } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -12,30 +14,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Get counts in parallel
-    const [usersResult, postsResult, requestsResult, subscribersResult] = await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('posts').select('*', { count: 'exact', head: true }),
-      supabase.from('membership_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('subscribers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    const [
+      [{ total: totalUsers }],
+      [{ total: totalPosts }],
+      [{ total: pendingRequests }],
+      [{ total: subscriberCount }],
+    ] = await Promise.all([
+      db.select({ total: count() }).from(users).where(eq(users.status, 'active')),
+      db.select({ total: count() }).from(posts),
+      db.select({ total: count() }).from(membershipRequests).where(eq(membershipRequests.status, 'pending')),
+      db.select({ total: count() }).from(subscribers).where(eq(subscribers.status, 'active')),
     ])
 
     return NextResponse.json({
       success: true,
       data: {
-        totalUsers: usersResult.count || 0,
-        totalPosts: postsResult.count || 0,
-        pendingRequests: requestsResult.count || 0,
-        subscribers: subscribersResult.count || 0,
+        totalUsers: totalUsers || 0,
+        totalPosts: totalPosts || 0,
+        pendingRequests: pendingRequests || 0,
+        subscribers: subscriberCount || 0,
       },
     })
   } catch (error) {

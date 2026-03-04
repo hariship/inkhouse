@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, posts } from '@/lib/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 
 export async function GET(
   request: NextRequest,
@@ -7,51 +9,43 @@ export async function GET(
 ) {
   try {
     const { username } = await params
-    const supabase = createServerClient()
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    const [author] = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        display_name: users.display_name,
+        bio: users.bio,
+        avatar_url: users.avatar_url,
+        website_url: users.website_url,
+        social_links: users.social_links,
+        created_at: users.created_at,
+      })
+      .from(users)
+      .where(and(eq(users.username, username), eq(users.status, 'active')))
+      .limit(1)
 
-    // Get author
-    const { data: author, error: authorError } = await supabase
-      .from('users')
-      .select('id, username, display_name, bio, avatar_url, website_url, social_links, created_at')
-      .eq('username', username)
-      .eq('status', 'active')
-      .single()
-
-    if (authorError || !author) {
+    if (!author) {
       return NextResponse.json(
         { success: false, error: 'Author not found' },
         { status: 404 }
       )
     }
 
-    // Get author's published posts
-    const { data: posts, error: postsError } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('author_id', author.id)
-      .eq('status', 'published')
-      .order('pub_date', { ascending: false })
-
-    if (postsError) {
-      console.error('Fetch posts error:', postsError)
-    }
+    const authorPosts = await db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.author_id, author.id), eq(posts.status, 'published')))
+      .orderBy(desc(posts.pub_date))
 
     const response = NextResponse.json({
       success: true,
       data: {
         author,
-        posts: posts || [],
+        posts: authorPosts,
       },
     })
 
-    // Cache author pages for 60 seconds on Vercel edge
     response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
     return response
   } catch (error) {

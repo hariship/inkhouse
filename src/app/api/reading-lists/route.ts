@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { readingLists, readingListItems } from '@/lib/db/schema'
+import { eq, desc, count } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - Get user's reading lists
@@ -13,43 +15,30 @@ export async function GET() {
       )
     }
 
-    const supabase = createServerClient()
+    const lists = await db
+      .select()
+      .from(readingLists)
+      .where(eq(readingLists.user_id, authUser.userId))
+      .orderBy(desc(readingLists.updated_at))
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    // Get item counts for each list
+    const listsWithCount = await Promise.all(
+      lists.map(async (list) => {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(readingListItems)
+          .where(eq(readingListItems.list_id, list.id))
 
-    // Get lists with item count
-    const { data: lists, error } = await supabase
-      .from('reading_lists')
-      .select(`
-        *,
-        items:reading_list_items(count)
-      `)
-      .eq('user_id', authUser.userId)
-      .order('updated_at', { ascending: false })
-
-    if (error) {
-      console.error('Get reading lists error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to get reading lists' },
-        { status: 500 }
-      )
-    }
-
-    // Transform to include item_count
-    const listsWithCount = lists?.map((list) => ({
-      ...list,
-      item_count: list.items?.[0]?.count || 0,
-      items: undefined,
-    }))
+        return {
+          ...list,
+          item_count: total || 0,
+        }
+      })
+    )
 
     return NextResponse.json({
       success: true,
-      data: listsWithCount || [],
+      data: listsWithCount,
     })
   } catch (error) {
     console.error('Get reading lists error:', error)
@@ -80,32 +69,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    const { data: list, error } = await supabase
-      .from('reading_lists')
-      .insert({
+    const [list] = await db
+      .insert(readingLists)
+      .values({
         user_id: authUser.userId,
         name: name.trim(),
         description: description?.trim() || null,
       })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Create reading list error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create reading list' },
-        { status: 500 }
-      )
-    }
+      .returning()
 
     return NextResponse.json({
       success: true,

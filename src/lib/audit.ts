@@ -1,4 +1,5 @@
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { auditLogs } from '@/lib/db/schema'
 
 type AuditAction =
   | 'user.role_change'
@@ -34,11 +35,8 @@ function getRequestContext(request?: Request) {
  * Core audit logging function
  */
 async function logAudit(entry: AuditLogEntry): Promise<void> {
-  const supabase = createServerClient()
-  if (!supabase) return
-
   try {
-    const { error } = await supabase.from('audit_logs').insert({
+    await db.insert(auditLogs).values({
       action: entry.action,
       user_id: entry.userId || null,
       target_id: entry.targetId || null,
@@ -47,9 +45,6 @@ async function logAudit(entry: AuditLogEntry): Promise<void> {
       ip_address: entry.ipAddress || null,
       user_agent: entry.userAgent || null,
     })
-    if (error) {
-      console.error('Audit log error:', error)
-    }
   } catch (error) {
     console.error('Audit log error:', error)
   }

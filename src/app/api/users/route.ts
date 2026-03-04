@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { ne, desc, count } from 'drizzle-orm'
 import { getAuthUser, isAdmin } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -12,44 +14,43 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Parse pagination params
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')))
     const offset = (page - 1) * limit
 
-    const { data: users, error, count } = await supabase
-      .from('users')
-      .select('id, email, username, display_name, bio, avatar_url, role, status, created_at, last_login_at', { count: 'exact' })
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(users)
+      .where(ne(users.status, 'deleted'))
 
-    if (error) {
-      console.error('Fetch users error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch users' },
-        { status: 500 }
-      )
-    }
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        display_name: users.display_name,
+        bio: users.bio,
+        avatar_url: users.avatar_url,
+        role: users.role,
+        status: users.status,
+        created_at: users.created_at,
+        last_login_at: users.last_login_at,
+      })
+      .from(users)
+      .where(ne(users.status, 'deleted'))
+      .orderBy(desc(users.created_at))
+      .limit(limit)
+      .offset(offset)
 
     return NextResponse.json({
       success: true,
-      data: users,
+      data: result,
       meta: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: total || 0,
+        totalPages: Math.ceil((total || 0) / limit),
       },
     })
   } catch (error) {

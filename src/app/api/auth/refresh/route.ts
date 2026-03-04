@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { sessions, users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import {
   verifyRefreshToken,
   generateAccessToken,
@@ -22,7 +24,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify refresh token
     const payload = verifyRefreshToken(refreshToken)
 
     if (!payload) {
@@ -33,23 +34,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const [session] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.refresh_token, refreshToken))
+      .limit(1)
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Check if session exists in database
-    const { data: session, error: sessionError } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('refresh_token', refreshToken)
-      .single()
-
-    if (sessionError || !session) {
+    if (!session) {
       await clearAuthCookies()
       return NextResponse.json(
         { success: false, error: 'Session not found' },
@@ -57,9 +48,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if session is expired
     if (new Date(session.expires_at) < new Date()) {
-      await supabase.from('sessions').delete().eq('id', session.id)
+      await db.delete(sessions).where(eq(sessions.id, session.id))
       await clearAuthCookies()
       return NextResponse.json(
         { success: false, error: 'Session expired' },
@@ -67,15 +57,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch user to ensure they're still active
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, email, username, role, status')
-      .eq('id', payload.userId)
-      .single()
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        role: users.role,
+        status: users.status,
+      })
+      .from(users)
+      .where(eq(users.id, payload.userId))
+      .limit(1)
 
-    if (userError || !user || user.status !== 'active') {
-      await supabase.from('sessions').delete().eq('id', session.id)
+    if (!user || user.status !== 'active') {
+      await db.delete(sessions).where(eq(sessions.id, session.id))
       await clearAuthCookies()
       return NextResponse.json(
         { success: false, error: 'User not found or inactive' },
@@ -83,27 +78,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate new tokens
     const newPayload: JWTPayload = {
       userId: user.id,
       email: user.email,
       username: user.username,
-      role: user.role,
+      role: user.role as JWTPayload['role'],
     }
 
     const newAccessToken = generateAccessToken(newPayload)
     const newRefreshToken = generateRefreshToken(newPayload)
 
-    // Update session with new refresh token
-    await supabase
-      .from('sessions')
-      .update({
+    await db
+      .update(sessions)
+      .set({
         refresh_token: newRefreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
-      .eq('id', session.id)
+      .where(eq(sessions.id, session.id))
 
-    // Set new cookies
     await setAuthCookies(newAccessToken, newRefreshToken)
 
     return NextResponse.json({ success: true })

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, sessions } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
 import {
   verifyPassword,
   generateAccessToken,
@@ -12,7 +14,6 @@ import { JWTPayload } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check rate limit
     const clientIp = getClientIp(request)
     const rateLimit = checkIpRateLimit(clientIp, 'login')
 
@@ -32,23 +33,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.email, email), eq(users.username, email)))
+      .limit(1)
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Find user by email or username
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .or(`email.eq.${email},username.eq.${email}`)
-      .single()
-
-    if (error || !user) {
+    if (!user) {
       await logLoginFailed(email, 'user_not_found', request)
       return NextResponse.json(
         { success: false, error: 'Invalid credentials' },
@@ -56,7 +47,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is active
     if (user.status !== 'active') {
       return NextResponse.json(
         { success: false, error: 'Account is suspended or deleted' },
@@ -64,8 +54,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify password
-    const isValid = await verifyPassword(password, user.password_hash)
+    const isValid = await verifyPassword(password, user.password_hash!)
     if (!isValid) {
       await logLoginFailed(email, 'invalid_password', request, user.id)
       return NextResponse.json(
@@ -74,43 +63,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate tokens
     const payload: JWTPayload = {
       userId: user.id,
       email: user.email,
       username: user.username,
-      role: user.role,
+      role: user.role as JWTPayload['role'],
     }
 
     const accessToken = generateAccessToken(payload)
     const refreshToken = generateRefreshToken(payload)
 
-    // Store session in database
-    const { error: sessionError } = await supabase.from('sessions').insert({
-      user_id: user.id,
-      refresh_token: refreshToken,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      user_agent: request.headers.get('user-agent') || '',
-      ip_address: request.headers.get('x-forwarded-for') || '',
-    })
-
-    if (sessionError) {
+    try {
+      await db.insert(sessions).values({
+        user_id: user.id,
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        user_agent: request.headers.get('user-agent') || '',
+        ip_address: request.headers.get('x-forwarded-for') || '',
+      })
+    } catch (sessionError) {
       console.error('Session creation error:', sessionError)
     }
 
-    // Update last login
-    await supabase
-      .from('users')
-      .update({ last_login_at: new Date().toISOString() })
-      .eq('id', user.id)
+    await db
+      .update(users)
+      .set({ last_login_at: new Date() })
+      .where(eq(users.id, user.id))
 
-    // Set cookies
     await setAuthCookies(accessToken, refreshToken)
-
-    // Log successful login
     await logLoginSuccess(user.id, user.email, request)
 
-    // Return user data (without password)
     const { password_hash: _, ...safeUser } = user
 
     return NextResponse.json({

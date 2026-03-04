@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts, users } from '@/lib/db/schema'
+import { eq, ne, and } from 'drizzle-orm'
 import { getAuthUser, isSuperAdmin, isAdmin } from '@/lib/auth'
 import { sendNewPostNotification } from '@/lib/email'
 import { deleteImage, extractPublicId, extractCloudinaryUrls } from '@/lib/cloudinary'
@@ -11,41 +13,48 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerClient()
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Check if id is numeric (post id) or string (normalized_title)
     const isNumeric = /^\d+$/.test(id)
 
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        author:users!posts_author_id_fkey(id, username, display_name, avatar_url, bio, website_url, social_links)
-      `)
+    const [post] = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+        description: posts.description,
+        image_url: posts.image_url,
+        content: posts.content,
+        category: posts.category,
+        enclosure: posts.enclosure,
+        pub_date: posts.pub_date,
+        updated_at: posts.updated_at,
+        author_id: posts.author_id,
+        status: posts.status,
+        featured: posts.featured,
+        allow_comments: posts.allow_comments,
+        type: posts.type,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+          avatar_url: users.avatar_url,
+          bio: users.bio,
+          website_url: users.website_url,
+          social_links: users.social_links,
+        },
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.author_id, users.id))
+      .where(isNumeric ? eq(posts.id, parseInt(id)) : eq(posts.normalized_title, id))
+      .limit(1)
 
-    if (isNumeric) {
-      query = query.eq('id', parseInt(id))
-    } else {
-      query = query.eq('normalized_title', id)
-    }
-
-    const { data: post, error } = await query.single()
-
-    if (error || !post) {
+    if (!post) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
       )
     }
 
-    // Check if post is published or user is the author/admin
     const authUser = await getAuthUser()
     const isAuthor = authUser?.userId === post.author_id
     const hasAdminAccess = isAdmin(authUser)
@@ -62,7 +71,6 @@ export async function GET(
       data: post,
     })
 
-    // Cache published posts for 60 seconds on Vercel edge
     if (post.status === 'published') {
       response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
     }
@@ -92,36 +100,26 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const supabase = createServerClient()
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    const [existingPost] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, parseInt(id)))
+      .limit(1)
 
-    // Get existing post
-    const { data: existingPost, error: fetchError } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !existingPost) {
+    if (!existingPost) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
       )
     }
 
-    // Check permission - desk posts require super_admin
     if (existingPost.type === 'desk') {
-      const { data: fullUser } = await supabase
-        .from('users')
-        .select('role, email')
-        .eq('id', authUser.userId)
-        .single()
+      const [fullUser] = await db
+        .select({ role: users.role, email: users.email })
+        .from(users)
+        .where(eq(users.id, authUser.userId))
+        .limit(1)
 
       if (!isSuperAdmin(fullUser)) {
         return NextResponse.json(
@@ -136,7 +134,6 @@ export async function PATCH(
       )
     }
 
-    // Prepare update data
     const updateData: Record<string, unknown> = {}
     const allowedFields = ['title', 'description', 'content', 'category', 'image_url', 'status', 'featured', 'allow_comments']
 
@@ -146,7 +143,6 @@ export async function PATCH(
       }
     }
 
-    // If title changed, update normalized_title
     if (body.title && body.title !== existingPost.title) {
       const normalizedTitle = body.title
         .toLowerCase()
@@ -154,53 +150,40 @@ export async function PATCH(
         .replace(/\s+/g, '-')
         .substring(0, 100)
 
-      // Check if normalized title already exists
-      const { data: existing } = await supabase
-        .from('posts')
-        .select('id')
-        .eq('normalized_title', normalizedTitle)
-        .neq('id', id)
-        .single()
+      const [existing] = await db
+        .select({ id: posts.id })
+        .from(posts)
+        .where(and(eq(posts.normalized_title, normalizedTitle), ne(posts.id, parseInt(id))))
+        .limit(1)
 
       updateData.normalized_title = existing
         ? `${normalizedTitle}-${Date.now()}`
         : normalizedTitle
     }
 
-    // If publishing for first time, set pub_date
     if (body.status === 'published' && existingPost.status !== 'published') {
-      updateData.pub_date = new Date().toISOString()
+      updateData.pub_date = new Date()
     }
 
-    const { data: post, error: updateError } = await supabase
-      .from('posts')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    const [post] = await db
+      .update(posts)
+      .set(updateData)
+      .where(eq(posts.id, parseInt(id)))
+      .returning()
 
-    if (updateError) {
-      console.error('Update post error:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update post' },
-        { status: 500 }
-      )
-    }
-
-    // Send notification if post is being published for the first time
     if (body.status === 'published' && existingPost.status !== 'published') {
-      const { data: author } = await supabase
-        .from('users')
-        .select('display_name, username')
-        .eq('id', existingPost.author_id)
-        .single()
+      const [authorData] = await db
+        .select({ display_name: users.display_name, username: users.username })
+        .from(users)
+        .where(eq(users.id, existingPost.author_id))
+        .limit(1)
 
-      if (author) {
+      if (authorData) {
         sendNewPostNotification({
           postTitle: post.title,
           postSlug: post.normalized_title,
-          authorName: author.display_name,
-          authorUsername: author.username,
+          authorName: authorData.display_name,
+          authorUsername: authorData.username,
         }).catch(err => console.error('Failed to send post notification:', err))
       }
     }
@@ -233,36 +216,31 @@ export async function DELETE(
     }
 
     const { id } = await params
-    const supabase = createServerClient()
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    const [existingPost] = await db
+      .select({
+        author_id: posts.author_id,
+        type: posts.type,
+        image_url: posts.image_url,
+        content: posts.content,
+      })
+      .from(posts)
+      .where(eq(posts.id, parseInt(id)))
+      .limit(1)
 
-    // Get existing post (include image_url and content for cleanup)
-    const { data: existingPost, error: fetchError } = await supabase
-      .from('posts')
-      .select('author_id, type, image_url, content')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !existingPost) {
+    if (!existingPost) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
       )
     }
 
-    // Check permission - desk posts require super_admin
     if (existingPost.type === 'desk') {
-      const { data: fullUser } = await supabase
-        .from('users')
-        .select('role, email')
-        .eq('id', authUser.userId)
-        .single()
+      const [fullUser] = await db
+        .select({ role: users.role, email: users.email })
+        .from(users)
+        .where(eq(users.id, authUser.userId))
+        .limit(1)
 
       if (!isSuperAdmin(fullUser)) {
         return NextResponse.json(
@@ -277,27 +255,14 @@ export async function DELETE(
       )
     }
 
-    // Collect all Cloudinary URLs from the post
     const cloudinaryUrls: string[] = []
     if (existingPost.image_url && existingPost.image_url.includes('res.cloudinary.com')) {
       cloudinaryUrls.push(existingPost.image_url)
     }
     cloudinaryUrls.push(...extractCloudinaryUrls(existingPost.content || ''))
 
-    const { error: deleteError } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id)
+    await db.delete(posts).where(eq(posts.id, parseInt(id)))
 
-    if (deleteError) {
-      console.error('Delete post error:', deleteError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete post' },
-        { status: 500 }
-      )
-    }
-
-    // Clean up Cloudinary images (best-effort, don't fail the request)
     const uniqueUrls = [...new Set(cloudinaryUrls)]
     for (const url of uniqueUrls) {
       const publicId = extractPublicId(url)

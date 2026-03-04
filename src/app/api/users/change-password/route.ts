@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getAuthUser, hashPassword, verifyPassword } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -29,31 +31,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const [user] = await db
+      .select({ id: users.id, password_hash: users.password_hash })
+      .from(users)
+      .where(eq(users.id, authUser.userId))
+      .limit(1)
 
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
-    // Get current user with password hash
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
-      .select('id, password_hash')
-      .eq('id', authUser.userId)
-      .single()
-
-    if (fetchError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
       )
     }
 
-    // Verify current password
-    const isValidPassword = await verifyPassword(currentPassword, user.password_hash)
+    const isValidPassword = await verifyPassword(currentPassword, user.password_hash!)
     if (!isValidPassword) {
       return NextResponse.json(
         { success: false, error: 'Current password is incorrect' },
@@ -61,20 +52,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Hash new password and update
     const newPasswordHash = await hashPassword(newPassword)
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ password_hash: newPasswordHash })
-      .eq('id', authUser.userId)
-
-    if (updateError) {
-      console.error('Password update error:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update password' },
-        { status: 500 }
-      )
-    }
+    await db
+      .update(users)
+      .set({ password_hash: newPasswordHash })
+      .where(eq(users.id, authUser.userId))
 
     return NextResponse.json({
       success: true,

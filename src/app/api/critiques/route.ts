@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { critiques, posts, users } from '@/lib/db/schema'
+import { eq, and, asc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 import { sendNewCritiqueNotification } from '@/lib/email'
 
@@ -24,29 +26,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
+    const [post] = await db
+      .select({ id: posts.id, author_id: posts.author_id, title: posts.title })
+      .from(posts)
+      .where(eq(posts.id, parseInt(postId)))
+      .limit(1)
 
-    // Get the post and verify user is the author
-    const { data: post, error: postError } = await supabase
-      .from('posts')
-      .select('id, author_id, title')
-      .eq('id', postId)
-      .single()
-
-    if (postError || !post) {
+    if (!post) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
       )
     }
 
-    // Only post author can view critiques
     if (post.author_id !== authUser.userId) {
       return NextResponse.json(
         { success: false, error: 'Only the post author can view critiques' },
@@ -54,28 +46,30 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch critiques with author info
-    const { data: critiques, error } = await supabase
-      .from('critiques')
-      .select(`
-        *,
-        author:users!critiques_author_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .eq('post_id', postId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: true })
+    const result = await db
+      .select({
+        id: critiques.id,
+        post_id: critiques.post_id,
+        author_id: critiques.author_id,
+        content: critiques.content,
+        parent_id: critiques.parent_id,
+        status: critiques.status,
+        created_at: critiques.created_at,
+        updated_at: critiques.updated_at,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+          avatar_url: users.avatar_url,
+        },
+      })
+      .from(critiques)
+      .leftJoin(users, eq(critiques.author_id, users.id))
+      .where(and(eq(critiques.post_id, parseInt(postId)), eq(critiques.status, 'active')))
+      .orderBy(asc(critiques.created_at))
 
-    if (error) {
-      console.error('Fetch critiques error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch critiques' },
-        { status: 500 }
-      )
-    }
-
-    // Organize into threads
-    const rootCritiques = critiques?.filter((c) => !c.parent_id) || []
-    const replies = critiques?.filter((c) => c.parent_id) || []
+    const rootCritiques = result.filter((c) => !c.parent_id)
+    const replies = result.filter((c) => c.parent_id)
 
     const threaded = rootCritiques.map((critique) => ({
       ...critique,
@@ -106,7 +100,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only writers/admins can leave critiques
     if (!['writer', 'admin', 'super_admin'].includes(authUser.role)) {
       return NextResponse.json(
         { success: false, error: 'Only writers can leave critiques' },
@@ -131,36 +124,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Get post and author info
-    const { data: post, error: postError } = await supabase
-      .from('posts')
-      .select(`
-        id,
-        title,
-        normalized_title,
-        author_id,
-        author:users!posts_author_id_fkey(id, email, display_name)
-      `)
-      .eq('id', post_id)
-      .eq('status', 'published')
-      .single()
+    const [post] = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+        author_id: posts.author_id,
+      })
+      .from(posts)
+      .where(and(eq(posts.id, post_id), eq(posts.status, 'published')))
+      .limit(1)
 
-    if (postError || !post) {
+    if (!post) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
       )
     }
 
-    // Cannot critique your own post
     if (post.author_id === authUser.userId) {
       return NextResponse.json(
         { success: false, error: 'You cannot critique your own post' },
@@ -168,21 +150,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get critiquer's name for notification
-    const { data: critiquer } = await supabase
-      .from('users')
-      .select('display_name')
-      .eq('id', authUser.userId)
-      .single()
+    // Get critiquer and post author info for notification
+    const [critiquer] = await db
+      .select({ display_name: users.display_name })
+      .from(users)
+      .where(eq(users.id, authUser.userId))
+      .limit(1)
 
-    // If replying, verify parent critique exists and belongs to this post
     if (parent_id) {
-      const { data: parentCritique } = await supabase
-        .from('critiques')
-        .select('id, post_id')
-        .eq('id', parent_id)
-        .eq('status', 'active')
-        .single()
+      const [parentCritique] = await db
+        .select({ id: critiques.id, post_id: critiques.post_id })
+        .from(critiques)
+        .where(and(eq(critiques.id, parent_id), eq(critiques.status, 'active')))
+        .limit(1)
 
       if (!parentCritique || parentCritique.post_id !== post_id) {
         return NextResponse.json(
@@ -192,39 +172,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create the critique
-    const { data: critique, error } = await supabase
-      .from('critiques')
-      .insert({
+    const [critique] = await db
+      .insert(critiques)
+      .values({
         post_id,
         author_id: authUser.userId,
         content: content.trim(),
         parent_id: parent_id || null,
         status: 'active',
       })
-      .select(`
-        *,
-        author:users!critiques_author_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .single()
-
-    if (error) {
-      console.error('Create critique error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create critique' },
-        { status: 500 }
-      )
-    }
+      .returning()
 
     // Send email notification to post author (non-blocking)
-    // Only notify for new critiques, not replies
-    if (!parent_id && post.author) {
-      // Supabase joins may return array or object depending on relation type
-      const authorData = Array.isArray(post.author) ? post.author[0] : post.author
-      if (authorData?.email) {
+    if (!parent_id) {
+      const [postAuthor] = await db
+        .select({ email: users.email, display_name: users.display_name })
+        .from(users)
+        .where(eq(users.id, post.author_id))
+        .limit(1)
+
+      if (postAuthor?.email) {
         sendNewCritiqueNotification({
-          to: authorData.email,
-          authorName: authorData.display_name,
+          to: postAuthor.email,
+          authorName: postAuthor.display_name,
           postTitle: post.title,
           postSlug: post.normalized_title,
           critiquerName: critiquer?.display_name || authUser.username,

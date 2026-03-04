@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts } from '@/lib/db/schema'
+import { eq, and, ne } from 'drizzle-orm'
 import { getApiUserFromRequest } from '@/lib/api-auth'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { PublicApiResponse, PublicApiPost } from '@/types'
@@ -28,9 +30,9 @@ function toApiPost(post: Record<string, unknown>): PublicApiPost {
     status: post.status as 'draft' | 'published' | 'archived',
     featured: post.featured as boolean,
     allow_comments: post.allow_comments as boolean,
-    pub_date: post.pub_date as string | undefined,
-    created_at: (post.pub_date || post.updated_at) as string,
-    updated_at: post.updated_at as string,
+    pub_date: post.pub_date instanceof Date ? post.pub_date.toISOString() : post.pub_date as string | undefined,
+    created_at: (post.pub_date instanceof Date ? post.pub_date.toISOString() : post.pub_date || (post.updated_at instanceof Date ? post.updated_at.toISOString() : post.updated_at)) as string,
+    updated_at: post.updated_at instanceof Date ? post.updated_at.toISOString() : post.updated_at as string,
   }
 }
 
@@ -56,18 +58,13 @@ export async function GET(
       return apiError('VALIDATION_ERROR', 'Invalid post ID', 400)
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return apiError('SERVICE_UNAVAILABLE', 'Database not configured', 503)
-    }
+    const [post] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1)
 
-    const { data: post, error } = await supabase
-      .from('posts')
-      .select('id, title, normalized_title, description, content, category, image_url, status, featured, allow_comments, pub_date, updated_at, author_id')
-      .eq('id', postId)
-      .single()
-
-    if (error || !post) {
+    if (!post) {
       return apiError('NOT_FOUND', 'Post not found', 404)
     }
 
@@ -77,7 +74,7 @@ export async function GET(
 
     const response: PublicApiResponse<PublicApiPost> = {
       success: true,
-      data: toApiPost(post),
+      data: toApiPost(post as unknown as Record<string, unknown>),
       meta: {
         rate_limit: {
           limit: rateLimit.limit,
@@ -116,19 +113,14 @@ export async function PATCH(
       return apiError('VALIDATION_ERROR', 'Invalid post ID', 400)
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return apiError('SERVICE_UNAVAILABLE', 'Database not configured', 503)
-    }
-
     // Check ownership
-    const { data: existingPost, error: fetchError } = await supabase
-      .from('posts')
-      .select('id, author_id, status, normalized_title')
-      .eq('id', postId)
-      .single()
+    const [existingPost] = await db
+      .select({ id: posts.id, author_id: posts.author_id, status: posts.status, normalized_title: posts.normalized_title })
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1)
 
-    if (fetchError || !existingPost) {
+    if (!existingPost) {
       return apiError('NOT_FOUND', 'Post not found', 404)
     }
 
@@ -158,12 +150,11 @@ export async function PATCH(
         .replace(/\s+/g, '-')
         .substring(0, 100)
 
-      const { data: existing } = await supabase
-        .from('posts')
-        .select('id')
-        .eq('normalized_title', normalizedTitle)
-        .neq('id', postId)
-        .single()
+      const [existing] = await db
+        .select({ id: posts.id })
+        .from(posts)
+        .where(and(eq(posts.normalized_title, normalizedTitle), ne(posts.id, postId)))
+        .limit(1)
 
       updateData.normalized_title = existing
         ? `${normalizedTitle}-${Date.now()}`
@@ -191,7 +182,7 @@ export async function PATCH(
 
       // Set pub_date when first published
       if (status === 'published' && existingPost.status !== 'published') {
-        updateData.pub_date = new Date().toISOString()
+        updateData.pub_date = new Date()
       }
     }
 
@@ -199,21 +190,15 @@ export async function PATCH(
       return apiError('VALIDATION_ERROR', 'No fields to update', 400)
     }
 
-    const { data: post, error: updateError } = await supabase
-      .from('posts')
-      .update(updateData)
-      .eq('id', postId)
-      .select('id, title, normalized_title, description, content, category, image_url, status, featured, allow_comments, pub_date, updated_at')
-      .single()
-
-    if (updateError) {
-      console.error('Update post error:', updateError)
-      return apiError('INTERNAL_ERROR', 'Failed to update post', 500)
-    }
+    const [post] = await db
+      .update(posts)
+      .set(updateData)
+      .where(eq(posts.id, postId))
+      .returning()
 
     const response: PublicApiResponse<PublicApiPost> = {
       success: true,
-      data: toApiPost(post),
+      data: toApiPost(post as unknown as Record<string, unknown>),
       meta: {
         rate_limit: {
           limit: rateLimit.limit,
@@ -252,19 +237,14 @@ export async function DELETE(
       return apiError('VALIDATION_ERROR', 'Invalid post ID', 400)
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return apiError('SERVICE_UNAVAILABLE', 'Database not configured', 503)
-    }
-
     // Check ownership
-    const { data: existingPost, error: fetchError } = await supabase
-      .from('posts')
-      .select('id, author_id')
-      .eq('id', postId)
-      .single()
+    const [existingPost] = await db
+      .select({ id: posts.id, author_id: posts.author_id })
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1)
 
-    if (fetchError || !existingPost) {
+    if (!existingPost) {
       return apiError('NOT_FOUND', 'Post not found', 404)
     }
 
@@ -272,15 +252,9 @@ export async function DELETE(
       return apiError('FORBIDDEN', 'You do not have access to this post', 403)
     }
 
-    const { error: deleteError } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
-
-    if (deleteError) {
-      console.error('Delete post error:', deleteError)
-      return apiError('INTERNAL_ERROR', 'Failed to delete post', 500)
-    }
+    await db
+      .delete(posts)
+      .where(eq(posts.id, postId))
 
     const response: PublicApiResponse = {
       success: true,

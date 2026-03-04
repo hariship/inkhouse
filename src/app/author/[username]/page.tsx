@@ -4,34 +4,47 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Navbar } from '@/components/layout/Navbar'
 import { Calendar, User, Globe, Twitter, Github, Linkedin, ArrowLeft } from 'lucide-react'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, posts } from '@/lib/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 
 // Revalidate every 60 seconds
 export const revalidate = 60
 
 async function getAuthorData(username: string) {
-  const supabase = createServerClient()
-  if (!supabase) return null
-
   // Get author
-  const { data: author } = await supabase
-    .from('users')
-    .select('id, username, display_name, avatar_url, bio, website_url, social_links')
-    .eq('username', username)
-    .eq('status', 'active')
-    .single()
+  const [author] = await db
+    .select({
+      id: users.id,
+      username: users.username,
+      display_name: users.display_name,
+      avatar_url: users.avatar_url,
+      bio: users.bio,
+      website_url: users.website_url,
+      social_links: users.social_links,
+    })
+    .from(users)
+    .where(and(eq(users.username, username), eq(users.status, 'active')))
+    .limit(1)
 
   if (!author) return null
 
   // Get author's published posts
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('id, title, normalized_title, description, image_url, category, pub_date')
-    .eq('author_id', author.id)
-    .eq('status', 'published')
-    .order('pub_date', { ascending: false })
+  const authorPosts = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      normalized_title: posts.normalized_title,
+      description: posts.description,
+      image_url: posts.image_url,
+      category: posts.category,
+      pub_date: posts.pub_date,
+    })
+    .from(posts)
+    .where(and(eq(posts.author_id, author.id), eq(posts.status, 'published')))
+    .orderBy(desc(posts.pub_date))
 
-  return { author, posts: posts || [] }
+  return { author, posts: authorPosts }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
@@ -119,8 +132,8 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                     Website
                   </a>
                 )}
-                {author.social_links &&
-                  Object.entries(author.social_links).map(
+                {!!author.social_links &&
+                  Object.entries(author.social_links as Record<string, string>).map(
                     ([platform, url]) =>
                       url && (
                         <a
@@ -188,7 +201,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ usernam
                     )}
                     <div className="flex items-center mt-3 text-sm text-[var(--color-text-muted)]">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(post.pub_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(post.pub_date!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </div>

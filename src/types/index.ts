@@ -124,11 +124,11 @@ export interface ApiKey {
   user_id: string
   name: string
   key_prefix: string
-  last_used_at?: string
-  expires_at?: string
-  status: 'active' | 'revoked'
-  created_at: string
-  updated_at: string
+  last_used_at: Date | string | null
+  expires_at: Date | string | null
+  status: string
+  created_at: Date | string | null
+  updated_at: Date | string | null
 }
 
 export interface ApiKeyWithSecret extends ApiKey {
@@ -145,16 +145,16 @@ export interface PublicApiPost {
   id: number
   title: string
   slug: string
-  description?: string
+  description?: string | null
   content: string
-  category?: string
-  image_url?: string
-  status: 'draft' | 'published' | 'archived'
-  featured: boolean
-  allow_comments: boolean
+  category?: string | null
+  image_url?: string | null
+  status: string
+  featured: boolean | null
+  allow_comments: boolean | null
   pub_date?: string
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface PublicApiError {

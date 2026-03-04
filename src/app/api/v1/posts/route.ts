@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { posts } from '@/lib/db/schema'
+import { eq, and, count } from 'drizzle-orm'
 import { getApiUserFromRequest } from '@/lib/api-auth'
 import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { PublicApiResponse, PublicApiPost } from '@/types'
@@ -36,38 +38,47 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return apiError('SERVICE_UNAVAILABLE', 'Database not configured', 503)
-    }
-
     // Parse query params
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10')))
-    const status = searchParams.get('status')
+    const statusFilter = searchParams.get('status')
     const offset = (page - 1) * limit
 
-    // Build query
-    let query = supabase
-      .from('posts')
-      .select('id, title, normalized_title, description, content, category, image_url, status, featured, allow_comments, pub_date, updated_at', { count: 'exact' })
-      .eq('author_id', auth.userId)
-      .order('updated_at', { ascending: false })
-
-    if (status && ['draft', 'published', 'archived'].includes(status)) {
-      query = query.eq('status', status)
+    // Build conditions
+    const conditions = [eq(posts.author_id, auth.userId!)]
+    if (statusFilter && ['draft', 'published', 'archived'].includes(statusFilter)) {
+      conditions.push(eq(posts.status, statusFilter))
     }
 
-    const { data: posts, error, count } = await query.range(offset, offset + limit - 1)
+    const whereClause = and(...conditions)
 
-    if (error) {
-      console.error('Fetch posts error:', error)
-      return apiError('INTERNAL_ERROR', 'Failed to fetch posts', 500)
-    }
+    // Get count and data in parallel
+    const [[{ total }], postRows] = await Promise.all([
+      db.select({ total: count() }).from(posts).where(whereClause),
+      db.select({
+        id: posts.id,
+        title: posts.title,
+        normalized_title: posts.normalized_title,
+        description: posts.description,
+        content: posts.content,
+        category: posts.category,
+        image_url: posts.image_url,
+        status: posts.status,
+        featured: posts.featured,
+        allow_comments: posts.allow_comments,
+        pub_date: posts.pub_date,
+        updated_at: posts.updated_at,
+      })
+        .from(posts)
+        .where(whereClause)
+        .orderBy(posts.updated_at)
+        .offset(offset)
+        .limit(limit),
+    ])
 
     // Transform to public API format
-    const apiPosts: PublicApiPost[] = (posts || []).map((post) => ({
+    const apiPosts: PublicApiPost[] = postRows.map((post) => ({
       id: post.id,
       title: post.title,
       slug: post.normalized_title,
@@ -78,9 +89,9 @@ export async function GET(request: NextRequest) {
       status: post.status,
       featured: post.featured,
       allow_comments: post.allow_comments,
-      pub_date: post.pub_date,
-      created_at: post.pub_date || post.updated_at,
-      updated_at: post.updated_at,
+      pub_date: post.pub_date?.toISOString(),
+      created_at: post.pub_date?.toISOString() || post.updated_at?.toISOString(),
+      updated_at: post.updated_at?.toISOString(),
     }))
 
     const response: PublicApiResponse<PublicApiPost[]> = {
@@ -89,7 +100,7 @@ export async function GET(request: NextRequest) {
       meta: {
         page,
         limit,
-        total: count || 0,
+        total: total || 0,
         rate_limit: {
           limit: rateLimit.limit,
           remaining: rateLimit.remaining,
@@ -127,11 +138,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return apiError('SERVICE_UNAVAILABLE', 'Database not configured', 503)
-    }
-
     const body = await request.json()
     const { title, content, description, category, image_url, status, featured, allow_comments } = body
 
@@ -161,39 +167,33 @@ export async function POST(request: NextRequest) {
       .substring(0, 100)
 
     // Check if normalized title exists
-    const { data: existing } = await supabase
-      .from('posts')
-      .select('id')
-      .eq('normalized_title', normalizedTitle)
-      .single()
+    const [existing] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.normalized_title, normalizedTitle))
+      .limit(1)
 
     const finalNormalizedTitle = existing
       ? `${normalizedTitle}-${Date.now()}`
       : normalizedTitle
 
     // Create post
-    const { data: post, error } = await supabase
-      .from('posts')
-      .insert({
+    const [post] = await db
+      .insert(posts)
+      .values({
         title: title.trim(),
         normalized_title: finalNormalizedTitle,
         description: description || null,
         content,
         category: category || null,
         image_url: image_url || null,
-        author_id: auth.userId,
+        author_id: auth.userId!,
         status: postStatus,
         featured: featured || false,
         allow_comments: allow_comments !== false,
-        pub_date: postStatus === 'published' ? new Date().toISOString() : null,
+        pub_date: postStatus === 'published' ? new Date() : null,
       })
-      .select('id, title, normalized_title, description, content, category, image_url, status, featured, allow_comments, pub_date, updated_at')
-      .single()
-
-    if (error) {
-      console.error('Create post error:', error)
-      return apiError('INTERNAL_ERROR', 'Failed to create post', 500)
-    }
+      .returning()
 
     const apiPost: PublicApiPost = {
       id: post.id,
@@ -206,9 +206,9 @@ export async function POST(request: NextRequest) {
       status: post.status,
       featured: post.featured,
       allow_comments: post.allow_comments,
-      pub_date: post.pub_date,
-      created_at: post.pub_date || post.updated_at,
-      updated_at: post.updated_at,
+      pub_date: post.pub_date?.toISOString(),
+      created_at: post.pub_date?.toISOString() || post.updated_at?.toISOString(),
+      updated_at: post.updated_at?.toISOString(),
     }
 
     const response: PublicApiResponse<PublicApiPost> = {

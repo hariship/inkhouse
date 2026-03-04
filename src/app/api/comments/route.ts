@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { comments, posts, users } from '@/lib/db/schema'
+import { eq, and, asc } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 
 // GET - Get comments for a post
@@ -15,36 +17,38 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
+    const result = await db
+      .select({
+        id: comments.id,
+        post_id: comments.post_id,
+        author_name: comments.author_name,
+        author_email: comments.author_email,
+        author_id: comments.author_id,
+        content: comments.content,
+        parent_id: comments.parent_id,
+        status: comments.status,
+        created_at: comments.created_at,
+        updated_at: comments.updated_at,
+        author: {
+          id: users.id,
+          username: users.username,
+          display_name: users.display_name,
+          avatar_url: users.avatar_url,
+        },
+      })
+      .from(comments)
+      .leftJoin(users, eq(comments.author_id, users.id))
+      .where(
+        and(
+          eq(comments.post_id, parseInt(postId)),
+          eq(comments.status, 'approved')
+        )
       )
-    }
-
-    const { data: comments, error } = await supabase
-      .from('comments')
-      .select(`
-        *,
-        author:users!comments_author_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .eq('post_id', postId)
-      .eq('status', 'approved')
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      console.error('Fetch comments error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch comments' },
-        { status: 500 }
-      )
-    }
+      .orderBy(asc(comments.created_at))
 
     // Organize into threads
-    const rootComments = comments?.filter((c) => !c.parent_id) || []
-    const replies = comments?.filter((c) => c.parent_id) || []
+    const rootComments = result.filter((c) => !c.parent_id)
+    const replies = result.filter((c) => c.parent_id)
 
     const threaded = rootComments.map((comment) => ({
       ...comment,
@@ -77,24 +81,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
-
-    if (!supabase) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 503 }
-      )
-    }
-
     // Check if post exists and allows comments
-    const { data: post, error: postError } = await supabase
-      .from('posts')
-      .select('id, allow_comments')
-      .eq('id', post_id)
-      .eq('status', 'published')
-      .single()
+    const [post] = await db
+      .select({ id: posts.id, allow_comments: posts.allow_comments })
+      .from(posts)
+      .where(and(eq(posts.id, post_id), eq(posts.status, 'published')))
+      .limit(1)
 
-    if (postError || !post) {
+    if (!post) {
       return NextResponse.json(
         { success: false, error: 'Post not found' },
         { status: 404 }
@@ -108,41 +102,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is authenticated
     const authUser = await getAuthUser()
 
-    // For authenticated users, get their display name
     let finalAuthorName = author_name
     if (authUser) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('display_name')
-        .eq('id', authUser.userId)
-        .single()
+      const [user] = await db
+        .select({ display_name: users.display_name })
+        .from(users)
+        .where(eq(users.id, authUser.userId))
+        .limit(1)
       finalAuthorName = user?.display_name || author_name
     }
 
-    const { data: comment, error } = await supabase
-      .from('comments')
-      .insert({
+    const [comment] = await db
+      .insert(comments)
+      .values({
         post_id,
         content,
         author_name: finalAuthorName,
         author_email: authUser ? null : author_email,
         author_id: authUser?.userId || null,
         parent_id: parent_id || null,
-        status: 'approved', // Auto-approve for now
+        status: 'approved',
       })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Create comment error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to create comment' },
-        { status: 500 }
-      )
-    }
+      .returning()
 
     return NextResponse.json({
       success: true,

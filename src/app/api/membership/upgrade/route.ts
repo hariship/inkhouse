@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { users, membershipRequests } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { getAuthUser } from '@/lib/auth'
 import { sendNewRequestNotification } from '@/lib/email'
 
@@ -11,39 +13,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 503 })
-    }
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, authUser.userId))
+      .limit(1)
 
-    // Get full user data
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', authUser.userId)
-      .single()
-
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
 
-    // Only readers can upgrade
     if (user.role !== 'reader') {
       return NextResponse.json({ success: false, error: 'Already a writer' }, { status: 400 })
     }
 
-    // Check for existing pending request
-    const { data: existingRequest } = await supabase
-      .from('membership_requests')
-      .select('id, status')
-      .eq('email', user.email)
-      .eq('status', 'pending')
-      .single()
+    const [existingRequest] = await db
+      .select({ id: membershipRequests.id, status: membershipRequests.status })
+      .from(membershipRequests)
+      .where(and(eq(membershipRequests.email, user.email), eq(membershipRequests.status, 'pending')))
+      .limit(1)
 
     if (existingRequest) {
       return NextResponse.json({
         success: false,
-        error: 'You already have a pending request'
+        error: 'You already have a pending request',
       }, { status: 400 })
     }
 
@@ -53,14 +46,13 @@ export async function POST(request: NextRequest) {
     if (!writing_sample?.trim()) {
       return NextResponse.json({
         success: false,
-        error: 'Please tell us why you want to become a writer'
+        error: 'Please tell us why you want to become a writer',
       }, { status: 400 })
     }
 
-    // Create membership request using existing user data
-    const { data: membershipRequest, error: insertError } = await supabase
-      .from('membership_requests')
-      .insert({
+    const [membershipRequest] = await db
+      .insert(membershipRequests)
+      .values({
         email: user.email,
         name: user.display_name,
         username: user.username,
@@ -71,18 +63,8 @@ export async function POST(request: NextRequest) {
         google_id: user.google_id || null,
         google_avatar_url: user.avatar_url || null,
       })
-      .select()
-      .single()
+      .returning()
 
-    if (insertError) {
-      console.error('Create upgrade request error:', insertError)
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to submit request'
-      }, { status: 500 })
-    }
-
-    // Send notification to super admin
     sendNewRequestNotification({
       name: user.display_name,
       email: user.email,
@@ -93,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: membershipRequest,
-      message: 'Request submitted successfully'
+      message: 'Request submitted successfully',
     })
   } catch (error) {
     console.error('Upgrade request error:', error)

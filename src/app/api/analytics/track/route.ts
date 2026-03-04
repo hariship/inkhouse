@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { db } from '@/lib/db'
+import { pageViews } from '@/lib/db/schema'
 
-// POST - Track a page view (fire-and-forget, non-blocking)
+// POST - Track a page view
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -11,19 +12,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false }, { status: 400 })
     }
 
-    const supabase = createServerClient()
-    if (!supabase) {
-      return NextResponse.json({ success: false }, { status: 503 })
-    }
-
-    // Insert page view (minimal data for performance)
-    await supabase.from('page_views').insert({
+    await db.insert(pageViews).values({
       post_id: parseInt(post_id, 10),
     })
 
     return NextResponse.json({ success: true })
   } catch {
-    // Fail silently - analytics should never break the user experience
     return NextResponse.json({ success: false }, { status: 500 })
   }
 }
