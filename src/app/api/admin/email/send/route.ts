@@ -16,7 +16,7 @@ function getResendClient() {
 function wrapInTemplate(body: string): string {
   // Body is already HTML from rich text editor
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; box-sizing: border-box;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 8px; box-sizing: border-box;">
       <h1 style="color: #0D9488; margin-bottom: 24px;">${APP_NAME}</h1>
       <div style="color: #374151; font-size: 16px; line-height: 1.8; word-wrap: break-word;">
         ${body}
