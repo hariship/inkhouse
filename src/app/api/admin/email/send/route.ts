@@ -15,18 +15,20 @@ function getResendClient() {
 
 function wrapInTemplate(body: string): string {
   // Body is already HTML from rich text editor
-  return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 8px; box-sizing: border-box;">
-      <h1 style="color: #0D9488; margin-bottom: 24px;">${APP_NAME}</h1>
-      <div style="color: #374151; font-size: 16px; line-height: 1.8; word-wrap: break-word;">
-        ${body}
-      </div>
-      <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;"/>
-      <p style="color: #6b7280; font-size: 12px;">
-        You received this email from ${APP_NAME}.
-      </p>
-    </div>
-  `
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <h1 style="color: #0D9488; margin: 0 0 24px 0; font-size: 24px;">${APP_NAME}</h1>
+  <div style="color: #374151; font-size: 15px; line-height: 1.7;">
+    ${body}
+  </div>
+  <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;"/>
+  <p style="color: #6b7280; font-size: 12px; margin: 0;">
+    You received this email from ${APP_NAME}.
+  </p>
+</td></tr></table>
+</body></html>`
 }
 
 export async function POST(request: NextRequest) {
