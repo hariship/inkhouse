@@ -14,9 +14,10 @@ function getResendClient() {
 }
 
 function wrapInTemplate(body: string): string {
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; max-width:600px; margin:0 auto; padding:20px; font-size:15px; line-height:1.7; color:#374151;">
+  const cleanBody = body.replace(/\sclass="[^"]*"/g, '')
+  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; padding:20px; font-size:15px; line-height:1.7; color:#374151;">
 <h2 style="color:#0D9488; margin:0 0 20px 0;">${APP_NAME}</h2>
-${body}
+${cleanBody}
 <hr style="margin:32px 0; border:none; border-top:1px solid #e5e7eb;"/>
 <p style="color:#6b7280; font-size:12px;">You received this email from ${APP_NAME}.</p>
 </div>`
