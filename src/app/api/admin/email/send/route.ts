@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
 
     const fromEmail = process.env.EMAIL_FROM || 'noreply@haripriya.org'
     const htmlContent = wrapInTemplate(body)
+    console.log('=== RAW QUILL BODY ===')
+    console.log(body)
+    console.log('=== FINAL HTML CONTENT ===')
+    console.log(htmlContent)
     let recipients: string[] = []
     let sentCount = 0
     let failedCount = 0
