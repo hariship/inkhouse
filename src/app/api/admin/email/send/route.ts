@@ -14,20 +14,17 @@ function getResendClient() {
 }
 
 function wrapInTemplate(body: string): string {
-  // Body is already HTML from rich text editor
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <h1 style="color: #0D9488; margin: 0 0 24px 0; font-size: 24px;">${APP_NAME}</h1>
-  <div style="color: #374151; font-size: 15px; line-height: 1.7;">
-    ${body}
-  </div>
-  <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;"/>
-  <p style="color: #6b7280; font-size: 12px; margin: 0;">
-    You received this email from ${APP_NAME}.
-  </p>
-</td></tr></table>
+<body style="margin:0; padding:0; width:100%; -webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; table-layout:fixed;">
+<tr><td align="left" valign="top" style="padding:20px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:15px; line-height:1.7; color:#374151; word-break:break-word;">
+<h2 style="color:#0D9488; margin:0 0 20px 0;">${APP_NAME}</h2>
+${body}
+<hr style="margin:32px 0; border:none; border-top:1px solid #e5e7eb;"/>
+<p style="color:#6b7280; font-size:12px;">You received this email from ${APP_NAME}.</p>
+</td></tr>
+</table>
 </body></html>`
 }
 
